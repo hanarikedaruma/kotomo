@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KOTOMO</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; }
+    header { background-color: #4CAF50; color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 100;}
+    .container { padding: 15px; padding-bottom: 80px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    
+    label { display: block; margin-top: 15px; font-weight: bold; font-size: 14px;}
+    input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; font-size: 16px;}
+    button.btn { background-color: #4CAF50; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; margin-top: 20px; font-size: 16px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+    
+    .bottom-nav { position: fixed; bottom: 0; width: 100%; background: #fff; display: flex; border-top: 1px solid #ddd; padding-bottom: env(safe-area-inset-bottom); z-index: 100;}
+    .bottom-nav button { flex: 1; padding: 10px 5px; background: none; border: none; font-size: 14px; cursor: pointer; color: #555; display: flex; flex-direction: column; align-items: center; gap: 4px;}
+    
+    #calc-modal { display: none; position: fixed; bottom: 0; width: 100%; max-height: 90vh; overflow-y: auto; background: #eceff1; padding: 15px; box-sizing: border-box; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1000;}
+    #calc-modal input.calc-input { width: 100%; text-align: right; font-size: 24px; margin-bottom: 10px; padding: 10px;}
+    .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .calc-grid button { padding: 15px; font-size: 18px; border: 1px solid #ccc; background: #fff; border-radius: 5px; font-weight:bold;}
+    
+    #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 2000; text-align: center; padding-top: 50vh; font-size: 18px; font-weight: bold; color: #4CAF50; }
+
+    .suggestion-box {
+      position: absolute; top: 100%; left: 0; right: 0; background: white;
+      border: 1px solid #ccc; border-top: none; border-radius: 0 0 5px 5px; 
+      z-index: 10; max-height: 200px; overflow-y: auto; display: none; 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .suggestion-box div { padding: 12px 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 16px; }
+    .suggestion-box div:last-child { border-bottom: none; }
+    .suggestion-box div:active { background: #e8f5e9; }
+    .star-icon { color: #FF9800; margin-right: 5px; font-size: 14px; }
+
+    #toast {
+      position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+      background-color: #333; color: white; padding: 12px 24px; border-radius: 30px;
+      z-index: 3000; transition: top 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); 
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 14px; font-weight: bold;
+      pointer-events: none; white-space: nowrap; text-align: center;
+    }
+    #toast.show { top: 20px; }
+
+    .swipe-wrap {
+      display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+      -ms-overflow-style: none; scrollbar-width: none;
+      margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      background: #f44336;
+    }
+    .swipe-wrap::-webkit-scrollbar { display: none; }
+    
+    .swipe-main {
+      flex: 0 0 100%; scroll-snap-align: start; background: #fff;
+      border-left: 5px solid #4CAF50; padding: 15px; box-sizing: border-box;
+    }
+    
+    .swipe-action {
+      flex: 0 0 80px; scroll-snap-align: end; display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: bold; cursor: pointer; font-size: 14px;
+    }
+    .bg-red { background: #f44336; }
+    .bg-green { background: #4CAF50; }
+    .bg-gray { background: #9E9E9E; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span style="font-family: 'Montserrat', sans-serif; font-size: 22px; letter-spacing: 2px;">KOTOMO</span>
+    <span style="float:right; cursor:pointer; font-size:20px;" onclick="toggleCalc()">🧮</span>
+  </header>
+
+  <div id="toast"></div>
+  <div id="loading">📡 通信中...</div>
+
+  <div id="settings-screen" class="container screen">
+    <h2 style="font-size:18px;">ユーザーID設定</h2>
+    <p style="font-size:14px; color:#555;">データをクラウドに保存・復元するための合言葉（ID）を決めてください。</p>
+    <label>あなたのID</label>
+    <input type="text" id="user-id-input" placeholder="例：secret_okomo_777">
+    <button class="btn" id="save-id-btn">IDを決定してデータを受信する</button>
+
+    <hr style="margin:30px 0 20px 0; border:0; border-top:1px solid #ccc;">
+    <h2 style="font-size:18px; color:#f44336;">🗑️ ゴミ箱（削除済みの記録）</h2>
+    <p style="font-size:13px; color:#555;">左にスワイプすると「復元」または「完全削除」が選べます。</p>
+    <div id="trash-list"></div>
+  </div>
+
+  <div id="home-screen" class="container screen active">
+    <h2 style="font-size:18px; display:inline-block;">品物一覧</h2>
+    <input type="text" id="home-search-input" placeholder="🔍 品名で絞り込み検索..." style="margin-bottom:15px; border:2px solid #4CAF50;">
+    <p style="font-size:12px; color:#777; margin-top:-5px; margin-bottom:10px;">💡 項目を左にスワイプで丸ごと削除</p>
+    <div id="item-list"></div>
+  </div>
+
+  <div id="record-screen" class="container screen">
+    <h2 id="record-screen-title" style="font-size:18px;">新しく記録する</h2>
+    <label>日付</label>
+    <input type="date" id="date-input">
+    
+    <label>スーパー名</label>
+    <div style="position: relative;">
+      <input type="text" id="super-input" placeholder="例：Aスーパー" autocomplete="off">
+      <div id="super-suggestions" class="suggestion-box"></div>
+    </div>
+
+    <label>品名</label>
+    <div style="position: relative;">
+      <input type="text" id="item-input" placeholder="例：じゃがいも" autocomplete="off">
+      <div id="item-suggestions" class="suggestion-box"></div>
+    </div>
+
+    <label>価格 (円)</label><input type="number" id="price-input">
+    <label>内容量</label>
+    <div style="display:flex; gap:10px;">
+      <input type="number" id="amount-input" style="flex:2;">
+      <select id="unit-input" style="flex:1;"><option value="個">個</option><option value="g">g</option></select>
+    </div>
+    <div id="unit-price-display" style="margin-top:10px; color:#E91E63; font-weight:bold; font-size:18px;"></div>
+    <label>感想・メモ</label>
+    <textarea id="memo-input" rows="3"></textarea>
+    <button class="btn" id="save-record-btn">クラウドに保存する</button>
+  </div>
+
+  <div id="detail-screen" class="container screen">
+    <button onclick="showScreen('home-screen')" style="margin-bottom:15px; padding:8px 15px; border-radius:5px; border:1px solid #ccc; background:#fff;">← 戻る</button>
+    
+    <h2 id="detail-title" style="margin-top:0; margin-bottom:10px;">品名</h2>
+    <button onclick="prefillRecord()" style="width:100%; margin-bottom:15px; padding:12px; border-radius:5px; border:none; background:#2196F3; color:white; font-size:16px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">➕ この品物を新しく記録する</button>
+    
+    <canvas id="priceChart" width="400" height="250" style="background:#fff; border-radius:5px; padding:5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></canvas>
+    
+    <h3 style="font-size:16px; margin-top:20px;">記録履歴・比較</h3>
+    <p style="font-size:12px; color:#777; margin-top:-10px; margin-bottom:10px;">💡 項目を左にスワイプで履歴を削除</p>
+    <div id="detail-history"></div>
+  </div>
+
+  <div id="calc-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h3 style="margin:0; font-size:16px;">🧮 電卓</h3>
+      <button onclick="toggleCalc()" style="padding:6px 12px; background:#607d8b; color:white; border:none; border-radius:5px;">閉じる</button>
+    </div>
+    <input type="text" id="calc-display" class="calc-input" readonly>
+    <div class="calc-grid">
+      <button onclick="calcInput('7')">7</button><button onclick="calcInput('8')">8</button><button onclick="calcInput('9')">9</button><button onclick="calcInput('/')">÷</button>
+      <button onclick="calcInput('4')">4</button><button onclick="calcInput('5')">5</button><button onclick="calcInput('6')">6</button><button onclick="calcInput('*')">×</button>
+      <button onclick="calcInput('1')">1</button><button onclick="calcInput('2')">2</button><button onclick="calcInput('3')">3</button><button onclick="calcInput('-')">-</button>
+      <button onclick="calcInput('0')">0</button><button onclick="calcInput('.')">.</button><button onclick="calcEval()" style="background:#4CAF50; color:white;">=</button><button onclick="calcInput('+')">+</button>
+      <button onclick="calcClear()" style="grid-column: span 4; background:#f44336; color:white;">クリア</button>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button onclick="resetAndShowHome()"><span style="font-size:20px;">🏠</span> 一覧</button>
+    <button onclick="openNewRecord()"><span style="font-size:20px;">➕</span> 記録</button>
+    <button onclick="showScreen('settings-screen')"><span style="font-size:20px;">⚙️</span> 設定</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDhBB0f7-_w9i1T_QG5CZNDC3h-9NGk_S0",
+    authDomain: "okomo-b85d0.firebaseapp.com",
+    databaseURL: "https://okomo-b85d0-default-rtdb.firebaseio.com",
+    projectId: "okomo-b85d0",
+    storageBucket: "okomo-b85d0.firebasestorage.app",
+    messagingSenderId: "879391563061",
+    appId: "1:879391563061:web:37097f81d0f1adf02cc07c"
+  };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let records = [];
+    
+    // ※内部の保存キーは「これまでのデータが消えてしまわないように」あえてそのまま残しています。
+    let currentUserId = localStorage.getItem('superOkomoUserId') || "";
+    let chartInstance = null;
+    let uniqueItemNames = []; 
+    let uniqueSuperNames = [];
+    let topSupers = [];
+    
+    let editingRecordId = null; 
+    let currentDetailItemName = "";
+    let returnToDetailFlag = false; 
+
+    document.getElementById('date-input').valueAsDate = new Date();
+    document.getElementById('user-id-input').value = currentUserId;
+
+    let toastTimeout;
+    window.showToast = function(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.backgroundColor = isError ? '#f44336' : '#333';
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
+    };
+
+    function toHiragana(str) {
+      return str.replace(/[\u30A1-\u30F6]/g, function(match) {
+        return String.fromCharCode(match.charCodeAt(0) - 0x60);
+      });
+    }
+
+    document.getElementById('save-id-btn').addEventListener('click', async () => {
+      const inputId = document.getElementById('user-id-input').value.trim();
+      if (!inputId) { showToast("IDを入力してください！", true); return; }
+      currentUserId = inputId;
+      localStorage.setItem('superOkomoUserId', currentUserId);
+      await loadDataFromCloud(true);
+    });
+
+    async function loadDataFromCloud(goToHome = true) {
+      if (!currentUserId) { showScreen('settings-screen'); return; }
+      showLoading(true);
+      try {
+        const q = query(collection(db, "records"), where("userId", "==", currentUserId));
+        const querySnapshot = await getDocs(q);
+        records = [];
+        querySnapshot.forEach((doc) => { records.push({ id: doc.id, ...doc.data() }); });
+        
+        renderHome(); 
+        if (goToHome) showScreen('home-screen');
+      } catch (error) {
+        console.error(error); showToast("データの取得に失敗しました", true);
+      }
+      showLoading(false);
+    }
+
+    window.logicalDeleteItem = async function(itemName) {
+      if (confirm(`「${itemName}」のすべての記録を削除しますか？\n（設定画面のゴミ箱から復元可能です）`)) {
+        showLoading(true);
+        const itemRecords = records.filter(r => r.itemName === itemName && !r.deleted);
+        try {
+          for (const r of itemRecords) {
+            await updateDoc(doc(db, "records", r.id), { deleted: true });
+          }
+          showToast(`「${itemName}」を削除しました`);
+          await loadDataFromCloud(false);
+          renderHome();
+        } catch(e) { showToast("削除に失敗しました", true); }
+        showLoading(false);
+      }
+    };
+
+    window.logicalDeleteRecord = async function(id) {
+      if (confirm("この記録を削除しますか？\n（設定画面のゴミ箱から復元可能です）")) {
+        showLoading(true);
+        try {
+          await updateDoc(doc(db, "records", id), { deleted: true });
+          showToast("記録を削除しました");
+          await loadDataFromCloud(false);
+          window.showDetail(currentDetailItemName);
+        } catch(e) { showToast("削除に失敗しました", true); }
+        showLoading(false);
+      }
+    };
+
+    window.restoreRecord = async function(id) {
+      showLoading(true);
+      try {
+        await updateDoc(doc(db, "records", id), { deleted: false });
+        showToast("データを復元しました");
+        await loadDataFromCloud(false);
+        renderTrash(); 
+      } catch(e) { showToast("復元に失敗しました", true); }
+      showLoading(false);
+    };
+
+    window.physicalDeleteRecord = async function(id) {
+      if (confirm("本当に完全に削除しますか？\n（この操作は取り消せません）")) {
+        showLoading(true);
+        try {
+          await deleteDoc(doc(db, "records", id));
+          showToast("完全に削除しました");
+          await loadDataFromCloud(false);
+          renderTrash(); 
+        } catch(e) { showToast("削除に失敗しました", true); }
+        showLoading(false);
+      }
+    };
+
+    window.openNewRecord = function() {
+      editingRecordId = null;
+      returnToDetailFlag = false; 
+      document.getElementById('record-screen-title').textContent = "新しく記録する";
+      document.getElementById('save-record-btn').textContent = "クラウドに保存する";
+      
+      const itemInput = document.getElementById('item-input');
+      itemInput.value = '';
+      itemInput.readOnly = false; 
+      itemInput.style.backgroundColor = '#fff'; 
+      
+      document.getElementById('price-input').value = '';
+      document.getElementById('amount-input').value = '';
+      document.getElementById('memo-input').value = '';
+      document.getElementById('unit-price-display').textContent = '';
+      
+      showScreen('record-screen');
+    };
+
+    window.prefillRecord = function() {
+      editingRecordId = null;
+      returnToDetailFlag = true; 
+      document.getElementById('record-screen-title').textContent = "新しく記録する";
+      document.getElementById('save-record-btn').textContent = "クラウドに保存する";
+
+      const itemRecords = records.filter(r => r.itemName === currentDetailItemName && !r.deleted).sort((a,b) => b.createdAt - a.createdAt);
+      const latest = itemRecords[0];
+
+      document.getElementById('date-input').valueAsDate = new Date();
+      document.getElementById('super-input').value = ""; 
+      
+      const itemInput = document.getElementById('item-input');
+      itemInput.value = currentDetailItemName; 
+      itemInput.readOnly = false; 
+      itemInput.style.backgroundColor = '#fff';
+
+      document.getElementById('price-input').value = ""; 
+      
+      if(latest) {
+        document.getElementById('amount-input').value = latest.amount; 
+        document.getElementById('unit-input').value = latest.unit; 
+      }
+      document.getElementById('memo-input').value = "";
+      document.getElementById('unit-price-display').textContent = '';
+
+      showScreen('record-screen');
+    };
+
+    window.editRecord = function(recordId) {
+      const rec = records.find(r => r.id === recordId);
+      if(!rec) return;
+
+      editingRecordId = recordId;
+      returnToDetailFlag = true; 
+      document.getElementById('record-screen-title').textContent = "記録を修正する";
+      document.getElementById('save-record-btn').textContent = "修正内容をクラウドに更新";
+
+      document.getElementById('date-input').value = rec.date;
+      document.getElementById('super-input').value = rec.superName;
+      
+      const itemInput = document.getElementById('item-input');
+      itemInput.value = rec.itemName;
+      itemInput.readOnly = true;
+      itemInput.style.backgroundColor = '#e0e0e0'; 
+      
+      document.getElementById('price-input').value = rec.price;
+      document.getElementById('amount-input').value = rec.amount;
+      document.getElementById('unit-input').value = rec.unit;
+      document.getElementById('memo-input').value = rec.memo || "";
+      calcUnitPrice(); 
+
+      showScreen('record-screen');
+    };
+
+    document.getElementById('save-record-btn').addEventListener('click', async () => {
+      if (!currentUserId) { showToast("IDを登録してください！", true); return; }
+
+      const date = document.getElementById('date-input').value;
+      let superName = document.getElementById('super-input').value.trim();
+      let itemName = document.getElementById('item-input').value.trim();
+      const price = parseFloat(document.getElementById('price-input').value);
+      const amount = parseFloat(document.getElementById('amount-input').value);
+      const unit = document.getElementById('unit-input').value;
+      const memo = document.getElementById('memo-input').value;
+
+      if (!date || !superName || !itemName || isNaN(price) || isNaN(amount)) {
+        showToast("入力漏れがあります！", true); return;
+      }
+
+      const hiraInputName = toHiragana(itemName);
+      const existingMatch = uniqueItemNames.find(existItem => toHiragana(existItem) === hiraInputName);
+      if (existingMatch) itemName = existingMatch;
+
+      const hiraInputSuper = toHiragana(superName);
+      const existingSuperMatch = uniqueSuperNames.find(existSuper => toHiragana(existSuper) === hiraInputSuper);
+      if (existingSuperMatch) superName = existingSuperMatch;
+
+      let unitPriceCalc = unit === '個' ? (price / amount) : ((price / amount) * 100);
+      
+      const recordData = {
+        userId: currentUserId, date: date, superName: superName, itemName: itemName,
+        price: price, amount: amount, unit: unit, unitPrice: unitPriceCalc, memo: memo,
+        deleted: false 
+      };
+
+      showLoading(true);
+      try {
+        if (editingRecordId) {
+          await updateDoc(doc(db, "records", editingRecordId), recordData);
+          showToast("記録を修正しました！");
+        } else {
+          recordData.createdAt = new Date().getTime();
+          await addDoc(collection(db, "records"), recordData);
+          showToast("保存しました！");
+        }
+        
+        document.getElementById('price-input').value = '';
+        document.getElementById('amount-input').value = '';
+        document.getElementById('memo-input').value = '';
+        
+        const itemInput = document.getElementById('item-input');
+        itemInput.value = '';
+        itemInput.readOnly = false;
+        itemInput.style.backgroundColor = '#fff';
+        
+        document.getElementById('unit-price-display').textContent = '';
+        
+        editingRecordId = null;
+        document.getElementById('record-screen-title').textContent = "新しく記録する";
+        document.getElementById('save-record-btn').textContent = "クラウドに保存する";
+
+        await loadDataFromCloud(false);
+        
+        if (returnToDetailFlag) {
+          window.showDetail(itemName); 
+          returnToDetailFlag = false; 
+        } else {
+          showScreen('home-screen'); 
+        }
+      } catch (error) {
+        console.error(error); showToast("保存に失敗しました", true);
+      }
+      showLoading(false);
+    });
+
+    window.resetAndShowHome = function() {
+      document.getElementById('home-search-input').value = '';
+      showScreen('home-screen');
+    };
+
+    window.showScreen = function(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+      if (screenId === 'home-screen') renderHome();
+      if (screenId === 'settings-screen') renderTrash(); 
+      window.scrollTo(0, 0);
+    }
+
+    function renderHome(searchKeyword = null) {
+      const listDiv = document.getElementById('item-list');
+      listDiv.innerHTML = '';
+      
+      let keyword = searchKeyword === null ? document.getElementById('home-search-input').value : searchKeyword;
+      
+      const activeRecords = records.filter(r => !r.deleted);
+      
+      const latestTimes = {};
+      activeRecords.forEach(r => {
+        if (!latestTimes[r.itemName] || r.createdAt > latestTimes[r.itemName]) {
+          latestTimes[r.itemName] = r.createdAt;
+        }
+      });
+      
+      let items = Object.keys(latestTimes).sort((a, b) => latestTimes[b] - latestTimes[a]);
+      
+      if (keyword) {
+        const hiraKeyword = toHiragana(keyword.trim());
+        items = items.filter(item => toHiragana(item).includes(hiraKeyword));
+      }
+      
+      if(items.length === 0) {
+        listDiv.innerHTML = '<p style="color:#777;">見つかりませんでした。</p>';
+        return;
+      }
+
+      items.forEach(itemName => {
+        const itemRecords = activeRecords.filter(r => r.itemName === itemName);
+        const latest = itemRecords.sort((a,b) => b.createdAt - a.createdAt)[0];
+        
+        const card = document.createElement('div');
+        card.className = 'swipe-wrap';
+        card.innerHTML = `
+          <div class="swipe-main" onclick="showDetail('${itemName}')" style="cursor:pointer;">
+            <h3 style="margin: 0 0 5px 0; font-size: 18px;">${itemName}</h3>
+            <p style="margin:0; font-size:14px; color:#555;">
+              📅 ${latest.date} 🛒 ${latest.superName}<br>
+              <strong style="color:#E91E63; font-size:16px;">単価: ${latest.unitPrice.toFixed(1)}円</strong> / ${latest.unit === '個' ? '1個' : '100g'}
+            </p>
+          </div>
+          <div class="swipe-action bg-red" onclick="logicalDeleteItem('${itemName}')">削除</div>
+        `;
+        listDiv.appendChild(card);
+      });
+      updateDataLists(activeRecords);
+    }
+
+    document.getElementById('home-search-input').addEventListener('input', (e) => {
+      renderHome(e.target.value);
+    });
+
+    function updateDataLists(activeRecords) {
+      uniqueItemNames = [...new Set(activeRecords.map(r => r.itemName))];
+      uniqueSuperNames = [...new Set(activeRecords.map(r => r.superName))];
+
+      const superCounts = {};
+      activeRecords.forEach(r => { superCounts[r.superName] = (superCounts[r.superName] || 0) + 1; });
+      topSupers = Object.keys(superCounts).sort((a, b) => superCounts[b] - superCounts[a]).slice(0, 8);
+    }
+
+    window.showDetail = function(itemName) {
+      currentDetailItemName = itemName;
+      document.getElementById('detail-title').textContent = itemName;
+      
+      const itemRecords = records.filter(r => r.itemName === itemName && !r.deleted).sort((a,b) => new Date(a.date) - new Date(b.date));
+      const historyDiv = document.getElementById('detail-history');
+      historyDiv.innerHTML = '';
+
+      if(itemRecords.length === 0) {
+        showScreen('home-screen');
+        return;
+      }
+
+      itemRecords.slice().reverse().forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'swipe-wrap';
+        card.innerHTML = `
+          <div class="swipe-main">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-size:12px; color:#777;">${r.date} - ${r.superName}</div>
+                <div style="font-weight:bold; font-size:16px;">
+                  ${r.price}円 (${r.amount}${r.unit})
+                  <span style="color:#E91E63; margin-left:10px;">単価: ${r.unitPrice.toFixed(1)}円</span>
+                </div>
+              </div>
+              <button onclick="editRecord('${r.id}')" style="background:none; border:none; font-size:18px; cursor:pointer; padding:5px; color:#555;">✏️</button>
+            </div>
+            <div style="margin-top:8px; font-size:14px; color:#444; background:#f9f9f9; padding:5px; border-radius:3px;">${r.memo || '感想なし'}</div>
+          </div>
+          <div class="swipe-action bg-red" onclick="logicalDeleteRecord('${r.id}')">削除</div>
+        `;
+        historyDiv.appendChild(card);
+      });
+
+      const labels = [...new Set(itemRecords.map(r => r.date))]; 
+      const supers = [...new Set(itemRecords.map(r => r.superName))]; 
+      
+      const datasets = supers.map((superName, index) => {
+        const data = labels.map(date => {
+          const rec = itemRecords.find(r => r.date === date && r.superName === superName);
+          return rec ? rec.unitPrice : null;
+        });
+        const colors = ['#E91E63', '#2196F3', '#FF9800', '#4CAF50', '#9C27B0'];
+        return { label: superName, data: data, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], fill: false, spanGaps: true };
+      });
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(document.getElementById('priceChart').getContext('2d'), {
+        type: 'line', data: { labels: labels, datasets: datasets },
+        options: { responsive: true, scales: { y: { beginAtZero: false, title: { display: true, text: '単価 (円)' } } } }
+      });
+      window.showScreen('detail-screen');
+    }
+
+    function renderTrash() {
+      const trashDiv = document.getElementById('trash-list');
+      trashDiv.innerHTML = '';
+      
+      const deletedRecords = records.filter(r => r.deleted).sort((a,b) => b.createdAt - a.createdAt);
+      
+      if(deletedRecords.length === 0) {
+        trashDiv.innerHTML = '<p style="color:#777; font-size:14px;">ゴミ箱は空です。</p>';
+        return;
+      }
+
+      deletedRecords.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'swipe-wrap';
+        card.style.background = '#9E9E9E'; 
+        card.innerHTML = `
+          <div class="swipe-main" style="border-left: 5px solid #9E9E9E; background: #eceff1;">
+            <div style="font-size:14px; font-weight:bold; color:#555;">${r.itemName}</div>
+            <div style="font-size:12px; color:#777;">${r.date} - ${r.superName} (${r.price}円)</div>
+          </div>
+          <div class="swipe-action bg-green" onclick="restoreRecord('${r.id}')">復元</div>
+          <div class="swipe-action bg-red" onclick="physicalDeleteRecord('${r.id}')">完全削除</div>
+        `;
+        trashDiv.appendChild(card);
+      });
+    }
+
+    const superInputEle = document.getElementById('super-input');
+    const superSuggBox = document.getElementById('super-suggestions');
+    const itemInputEle = document.getElementById('item-input');
+    const itemSuggBox = document.getElementById('item-suggestions');
+
+    function showSuperSuggestions() {
+      const val = superInputEle.value.trim();
+      if (!val) {
+        if (topSupers.length > 0) {
+          superSuggBox.innerHTML = topSupers.map(m => `<div onclick="selectSuper('${m}')"><span class="star-icon">★</span>${m}</div>`).join('');
+          superSuggBox.style.display = 'block';
+        }
+      } else {
+        const hiraVal = toHiragana(val);
+        const matches = uniqueSuperNames.filter(s => toHiragana(s).includes(hiraVal));
+        if (matches.length > 0) {
+          superSuggBox.innerHTML = matches.map(m => `<div onclick="selectSuper('${m}')">${m}</div>`).join('');
+          superSuggBox.style.display = 'block';
+        } else {
+          superSuggBox.style.display = 'none';
+        }
+      }
+    }
+    superInputEle.addEventListener('focus', showSuperSuggestions);
+    superInputEle.addEventListener('click', showSuperSuggestions);
+    superInputEle.addEventListener('input', showSuperSuggestions);
+    window.selectSuper = function(name) { superInputEle.value = name; superSuggBox.style.display = 'none'; };
+
+    itemInputEle.addEventListener('input', function() {
+      if (this.readOnly) return;
+
+      const val = this.value.trim();
+      if (!val) { itemSuggBox.style.display = 'none'; return; }
+      const hiraVal = toHiragana(val);
+      const matches = uniqueItemNames.filter(item => toHiragana(item).includes(hiraVal));
+      if (matches.length > 0) {
+        itemSuggBox.innerHTML = matches.map(m => `<div onclick="selectItem('${m}')">${m}</div>`).join('');
+        itemSuggBox.style.display = 'block';
+      } else {
+        itemSuggBox.style.display = 'none';
+      }
+    });
+    window.selectItem = function(name) { itemInputEle.value = name; itemSuggBox.style.display = 'none'; };
+
+    document.addEventListener('click', function(e) {
+      if (e.target !== itemInputEle) itemSuggBox.style.display = 'none';
+      if (e.target !== superInputEle) superSuggBox.style.display = 'none';
+    });
+
+    const priceInput = document.getElementById('price-input');
+    const amountInput = document.getElementById('amount-input');
+    const unitInput = document.getElementById('unit-input');
+    function calcUnitPrice() {
+      const p = parseFloat(priceInput.value), a = parseFloat(amountInput.value), u = unitInput.value;
+      const disp = document.getElementById('unit-price-display');
+      if (p > 0 && a > 0) disp.textContent = u === '個' ? `1個あたり: ${(p/a).toFixed(1)}円` : `100gあたり: ${((p/a)*100).toFixed(1)}円`;
+      else disp.textContent = '';
+    }
+    priceInput.addEventListener('input', calcUnitPrice);
+    amountInput.addEventListener('input', calcUnitPrice);
+    unitInput.addEventListener('change', calcUnitPrice);
+
+    window.toggleCalc = function() { const m = document.getElementById('calc-modal'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+    window.calcInput = function(v) { document.getElementById('calc-display').value += v; }
+    window.calcClear = function() { document.getElementById('calc-display').value = ""; }
+    window.calcEval = function() { try { document.getElementById('calc-display').value = eval(document.getElementById('calc-display').value); } catch(e) {} }
+    function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+
+    if (currentUserId) { loadDataFromCloud(true); }
+  </script>
+</body>
+</html>
