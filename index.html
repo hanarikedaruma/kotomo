@@ -32,13 +32,14 @@
     .suggestion-box div:active { background: #e8f5e9; }
     .star-icon { color: #FF9800; margin-right: 5px; font-size: 14px; }
 
+    /* トースト通知を下部に表示 */
     #toast { position: fixed; bottom: -100px; top: auto; left: 50%; transform: translateX(-50%); background-color: rgba(50,50,50,0.9); color: white; padding: 10px 20px; border-radius: 20px; z-index: 3000; transition: bottom 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 13px; font-weight: bold; pointer-events: none; white-space: nowrap; text-align: center; }
     #toast.show { bottom: 85px; }
 
     /* スワイプUI */
     .swipe-wrap { display: flex; overflow-x: auto; scroll-snap-type: x proximity; -ms-overflow-style: none; scrollbar-width: none; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     .swipe-wrap::-webkit-scrollbar { display: none; }
-    .swipe-main { flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always; background: #fff; border-left: 5px solid #4CAF50; padding: 0; box-sizing: border-box; transition: background 0.2s; position:relative;}
+    .swipe-main { flex: 0 0 100%; scroll-snap-align: center; scroll-snap-stop: always; background: #fff; border-left: 5px solid #4CAF50; padding: 15px; box-sizing: border-box; transition: background 0.2s; position:relative;}
     .swipe-action { flex: 0 0 110px; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; font-size: 14px; text-align:center;}
     .bg-red { background: #f44336; }
     .bg-green { background: #4CAF50; }
@@ -52,7 +53,7 @@
     
     .cart-common-area { background: #f0f0f0; padding: 8px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 8px; align-items: center; border: 1px solid #ddd;}
     .cart-common-area input { margin: 0; padding: 8px; font-size: 14px; border: 1px solid #ccc; }
-    .cart-add-area { display: flex; gap: 10px; margin-bottom: 15px; }
+    .cart-add-area { display: flex; gap: 10px; margin-bottom: 10px; }
     .cart-add-area input { border: 2px solid #4CAF50; padding: 12px; font-size: 16px; margin: 0;}
     .cart-body { padding: 15px; border-top: 1px dashed #eee; display: none; background: #fafafa; }
     .cart-body.open { display: block; }
@@ -110,11 +111,15 @@
   <header id="main-header">
     <div style="width:20px;"></div>
     <span style="font-family: 'Montserrat', sans-serif; font-size: 22px; letter-spacing: 2px;">KOTOMO</span>
-    <span style="cursor:pointer; font-size:20px; background:#fff; color:#4CAF50; padding:6px 12px; border-radius:20px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="toggleTools()">🧮</span>
+    <span style="cursor:pointer; font-size:20px; background:#fff; color:#4CAF50; padding:6px 12px; border-radius:20px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="window.toggleTools()">🧮</span>
   </header>
 
   <div id="toast"></div>
   <div id="loading">📡 通信中...</div>
+
+  <div id="receipt-overlay" style="display:none; position:fixed; left:0; width:100%; z-index:90; pointer-events:none; background:transparent;">
+    <img id="receipt-overlay-img" src="" style="width:100%; height:100%; object-fit:contain; opacity:0.3;">
+  </div>
 
   <div id="dashboard-screen" class="container screen active">
     <div class="dash-card" style="display:flex; justify-content:space-between; background:linear-gradient(135deg, #4CAF50, #81c784); color:white;">
@@ -145,7 +150,15 @@
   </div>
 
   <div id="record-screen" class="container screen">
-    <button onclick="cancelRecord()" style="margin-bottom:12px; padding:8px 15px; border-radius:5px; border:1px solid #ccc; background:#fff; white-space:nowrap; cursor:pointer;">← 戻る</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;">
+      <button onclick="window.cancelRecord()" style="padding:8px 15px; border-radius:5px; border:1px solid #ccc; background:#fff; white-space:nowrap; cursor:pointer;">← 戻る</button>
+      
+      <label id="record-receipt-btn" style="flex:1; margin:0; background:#9C27B0; color:white; padding:8px 10px; border-radius:5px; text-align:center; font-size:14px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+        📷 レシート読込
+        <input type="file" accept="image/*" style="display:none;" onchange="window.handleReceiptSelect(event, 'record')">
+      </label>
+    </div>
+
     <div style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:12px; border:1px solid #c8e6c9;">
       <div style="font-size:12px; font-weight:bold; color:#2e7d32; margin-bottom:5px;">📍 購入日とスーパー</div>
       <div style="display:flex; gap:10px;">
@@ -180,14 +193,47 @@
     </div>
   </div>
 
+  <div id="receipt-screen" class="container screen">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <button onclick="window.cancelReceipt()" style="padding:8px 15px; border-radius:5px; border:1px solid #ccc; background:#fff; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.1);">キャンセル</button>
+      <h2 style="margin:0; font-size:16px; color:#333;">📷 レシート確認</h2>
+    </div>
+
+    <div id="receipt-preview-area" style="display:none; margin-bottom:15px;">
+      <button id="receipt-toggle-btn" onclick="window.toggleReceiptOverlay()" style="width:100%; padding:10px; background:#607d8b; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">🖼 レシート画像を透かして表示</button>
+    </div>
+
+    <div style="background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:12px; border:1px solid #c8e6c9;">
+      <div style="font-size:12px; font-weight:bold; color:#2e7d32; margin-bottom:5px;">📍 購入日とスーパー</div>
+      <div style="display:flex; gap:10px;">
+        <input type="date" id="receipt-date" style="flex:1; margin:0; padding:8px; font-size:14px;">
+        <div style="flex:1.5; position:relative;">
+          <input type="text" id="receipt-super" placeholder="スーパー名" style="margin:0; padding:8px; font-size:14px; width:100%; box-sizing:border-box;" autocomplete="off">
+          <div id="receipt-super-suggestions" class="suggestion-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:12px; color:#555; margin-top:0;">読み取った商品リストです。内容量(単位)は手動で入力してください。</p>
+
+    <div id="receipt-items-container"></div>
+    <button onclick="window.addReceiptItemRow()" style="width:100%; padding:10px; background:#fff; border:2px dashed #4CAF50; color:#4CAF50; font-weight:bold; border-radius:5px; margin-bottom:15px;">＋ 行を追加する</button>
+
+    <div id="receipt-action-record" style="display:flex; gap:10px;">
+      <button class="btn" onclick="window.saveReceiptAs('record')" style="flex:1; margin-top:0;">🛒 一括購入記録</button>
+      <button class="btn" onclick="window.saveReceiptAs('memo')" style="flex:1; margin-top:0; background:#FF9800;">📝 一括メモ記録</button>
+    </div>
+  </div>
+
   <div id="cart-screen" class="container screen">
-    <div class="tab-wrap"><div id="tab-incart" class="tab active" onclick="switchCartTab('incart')">🛒 買い物リスト</div><div id="tab-pending" class="tab" onclick="switchCartTab('pending')">📝 後で入力 <span id="tab-pending-badge" class="tab-badge">0</span></div></div>
+    <div class="tab-wrap"><div id="tab-incart" class="tab active" onclick="window.switchCartTab('incart')">🛒 買い物リスト</div><div id="tab-pending" class="tab" onclick="window.switchCartTab('pending')">📝 後で入力 <span id="tab-pending-badge" class="tab-badge">0</span></div></div>
     <div id="cart-incart-area">
-      <div class="cart-add-area" style="position:relative;">
+      <div class="cart-add-area" style="position:relative; margin-bottom:10px;">
         <input type="text" id="cart-add-input" placeholder="🛒 買うものを追加..." style="flex:1;" autocomplete="off">
         <div id="cart-add-suggestions" class="suggestion-box" style="top:46px;"></div>
-        <button onclick="addCustomToCart()" style="background:#4CAF50; color:white; border:none; padding:0 20px; border-radius:5px; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">＋追加</button>
+        <button onclick="window.addCustomToCart()" style="background:#4CAF50; color:white; border:none; padding:0 20px; border-radius:5px; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">＋追加</button>
       </div>
+
       <div class="cart-common-area">
         <span style="font-size:12px; font-weight:bold; color:#777; white-space:nowrap;">📍 設定</span>
         <input type="date" id="cart-date-input" style="flex:1;">
@@ -207,7 +253,7 @@
           合計: <span style="color:#E91E63; font-size:22px;">¥<span id="cart-total-price">0</span></span>
         </div>
       </div>
-      <button class="btn" onclick="checkoutCart()" style="background:#2196F3; font-size:18px; margin-top:0;">🛒 チェックした商品を購入</button>
+      <button class="btn" onclick="window.checkoutCart()" style="background:#2196F3; font-size:18px; margin-top:0;">🛒 チェックした商品を購入</button>
       <p style="font-size:11px; color:#777; margin-top:5px; text-align:center;">※右スワイプで価格のみの「メモ登録」ができます。</p>
     </div>
     <div id="cart-pending-area" style="display:none;">
@@ -219,12 +265,12 @@
   <div id="detail-screen" class="container screen">
     <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:15px;">
       <div style="display:flex; align-items:flex-start; gap:10px; flex:1; min-width:0; padding-right:10px;">
-        <button onclick="showScreen('home-screen')" style="padding:8px 15px; border-radius:5px; border:1px solid #ccc; background:#fff; white-space:nowrap; margin-top:2px;">← 戻る</button>
+        <button onclick="window.showScreen('home-screen')" style="padding:8px 15px; border-radius:5px; border:1px solid #ccc; background:#fff; white-space:nowrap; margin-top:2px;">← 戻る</button>
         <h2 id="detail-title" style="margin:0; font-size:18px; color:#333; word-break:break-word; line-height:1.4;">品名</h2>
       </div>
-      <button onclick="openMarketFromDetail()" style="padding:6px 10px; border-radius:5px; border:1px solid #FF9800; background:#fff; color:#FF9800; font-weight:bold; font-size:12px; white-space:nowrap; flex-shrink:0; margin-top:2px;">📈 相場</button>
+      <button onclick="window.openMarketFromDetail()" style="padding:6px 10px; border-radius:5px; border:1px solid #FF9800; background:#fff; color:#FF9800; font-weight:bold; font-size:12px; white-space:nowrap; flex-shrink:0; margin-top:2px;">📈 相場</button>
     </div>
-    <button onclick="prefillRecord()" style="width:100%; margin-bottom:15px; padding:12px; border-radius:5px; border:none; background:#2196F3; color:white; font-size:16px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">➕ この品物を新しく記録する</button>
+    <button onclick="window.prefillRecord()" style="width:100%; margin-bottom:15px; padding:12px; border-radius:5px; border:none; background:#2196F3; color:white; font-size:16px; font-weight:bold; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">➕ この品物を新しく記録する</button>
     
     <div style="display:flex; justify-content:space-around; background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #c8e6c9;">
       <div style="text-align:center;">
@@ -247,6 +293,15 @@
     <label style="margin-top:0;">あなたのID（データの合言葉）</label>
     <input type="text" id="user-id-input" placeholder="例：secret_okomo_777">
     <button class="btn" id="save-id-btn">IDを決定してデータを受信する</button>
+    
+    <hr style="margin:30px 0 20px 0; border:0; border-top:1px solid #ccc;">
+    
+    <h2 style="font-size:18px; color:#9C27B0; margin-top:0;">🤖 レシートAI設定 (Gemini API)</h2>
+    <p style="font-size:12px; color:#555; margin-top:0;">Google AI Studioで取得した無料のAPIキーを入力してください。</p>
+    <input type="password" id="gemini-api-key-input" placeholder="AIzaSy...">
+    <button class="btn" id="save-gemini-key-btn" style="background:#9C27B0; margin-top:10px;">APIキーを保存する</button>
+    <div id="gemini-key-status" style="font-size:12px; color:#4CAF50; margin-top:5px; font-weight:bold; display:none;">✅ 保存されています</div>
+
     <hr style="margin:30px 0 20px 0; border:0; border-top:1px solid #ccc;">
     <h2 style="font-size:18px; color:#f44336; margin-top:0;">🗑️ ゴミ箱（削除済みの記録）</h2>
     <div id="trash-list"></div>
@@ -255,10 +310,10 @@
   <div id="tools-modal" class="tools-modal">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
       <div class="tab-wrap" style="margin:0; width:60%; background:#d0d7dd;">
-        <div id="tab-market" class="tab active" onclick="switchToolsTab('market')" style="padding:6px 2px; font-size:13px;">📈 相場チェック</div>
-        <div id="tab-calc" class="tab" onclick="switchToolsTab('calc')" style="padding:6px 2px; font-size:13px;">🧮 電卓</div>
+        <div id="tab-market" class="tab active" onclick="window.switchToolsTab('market')" style="padding:6px 2px; font-size:13px;">📈 相場チェック</div>
+        <div id="tab-calc" class="tab" onclick="window.switchToolsTab('calc')" style="padding:6px 2px; font-size:13px;">🧮 電卓</div>
       </div>
-      <button onclick="toggleTools()" style="padding:6px 12px; font-size:14px; background:#607d8b; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">閉じる</button>
+      <button onclick="window.toggleTools()" style="padding:6px 12px; font-size:14px; background:#607d8b; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">閉じる</button>
     </div>
 
     <div id="tools-market-area">
@@ -285,25 +340,25 @@
             <div id="market-pin" class="market-pin">📍</div>
           </div>
           <div style="display:flex; justify-content:space-between; margin-top:20px;">
-            <button id="market-to-cart-btn" onclick="marketToCart()" style="flex:1; background:#4CAF50; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; margin-right:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">🛒 カートへ</button>
-            <button onclick="marketToRecord()" style="flex:1; background:#2196F3; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; margin-left:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">📝 直接記録</button>
+            <button id="market-to-cart-btn" onclick="window.marketToCart()" style="flex:1; background:#4CAF50; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; margin-right:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">🛒 カートへ</button>
+            <button onclick="window.marketToRecord()" style="flex:1; background:#2196F3; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; margin-left:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">📝 直接記録</button>
           </div>
         </div>
         <div id="market-empty-area" style="margin-top:15px; text-align:center; color:#777; font-size:13px;">
           品名と価格・量を入力すると、過去の履歴から相場を判定します。
         </div>
       </div>
-      <button onclick="clearMarket()" style="width:100%; margin-top:10px; padding:8px; background:#f44336; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">入力をクリア</button>
+      <button onclick="window.clearMarket()" style="width:100%; margin-top:10px; padding:8px; background:#f44336; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">入力をクリア</button>
     </div>
 
     <div id="tools-calc-area" style="display:none;">
       <input type="text" id="calc-display" style="width:100%; text-align:right; font-size:24px; margin-bottom:10px; padding:10px; box-sizing:border-box; border:1px solid #ccc; border-radius:5px; background:#fff;" readonly>
       <div class="tools-calc-grid">
-        <button onclick="calcInput('7')">7</button><button onclick="calcInput('8')">8</button><button onclick="calcInput('9')">9</button><button onclick="calcInput('/')">÷</button>
-        <button onclick="calcInput('4')">4</button><button onclick="calcInput('5')">5</button><button onclick="calcInput('6')">6</button><button onclick="calcInput('*')">×</button>
-        <button onclick="calcInput('1')">1</button><button onclick="calcInput('2')">2</button><button onclick="calcInput('3')">3</button><button onclick="calcInput('-')">-</button>
-        <button onclick="calcInput('0')">0</button><button onclick="calcInput('.')">.</button><button onclick="calcEval()" style="background:#4CAF50; color:white;">=</button><button onclick="calcInput('+')">+</button>
-        <button onclick="calcClear()" style="grid-column: span 4; background:#f44336; color:white;">クリア</button>
+        <button onclick="window.calcInput('7')">7</button><button onclick="window.calcInput('8')">8</button><button onclick="window.calcInput('9')">9</button><button onclick="window.calcInput('/')">÷</button>
+        <button onclick="window.calcInput('4')">4</button><button onclick="window.calcInput('5')">5</button><button onclick="window.calcInput('6')">6</button><button onclick="window.calcInput('*')">×</button>
+        <button onclick="window.calcInput('1')">1</button><button onclick="window.calcInput('2')">2</button><button onclick="window.calcInput('3')">3</button><button onclick="window.calcInput('-')">-</button>
+        <button onclick="window.calcInput('0')">0</button><button onclick="window.calcInput('.')">.</button><button onclick="window.calcEval()" style="background:#4CAF50; color:white;">=</button><button onclick="window.calcInput('+')">+</button>
+        <button onclick="window.calcClear()" style="grid-column: span 4; background:#f44336; color:white;">クリア</button>
       </div>
     </div>
   </div>
@@ -311,48 +366,48 @@
   <div id="numpad-modal">
     <div class="numpad-header">
       <div style="display:flex; gap:10px;">
-        <button onclick="moveCaret(-1)">◀</button>
-        <button onclick="moveCaret(1)">▶</button>
+        <button onclick="window.moveCaret(-1)">◀</button>
+        <button onclick="window.moveCaret(1)">▶</button>
       </div>
-      <button onclick="closeNumpad()" style="background:#607d8b; color:white; border:none;">閉じる</button>
+      <button onclick="window.closeNumpad()" style="background:#607d8b; color:white; border:none;">閉じる</button>
     </div>
     <div style="display:flex; gap:4px; margin-bottom:6px;">
-      <button onclick="applyModifier(0.5)" style="flex:1; padding:6px; font-size:13px; background:#e3f2fd; border:1px solid #bbdefb; border-radius:4px; color:#1565C0; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">半額</button>
-      <button onclick="applyModifier(0.8)" style="flex:1; padding:6px; font-size:13px; background:#e3f2fd; border:1px solid #bbdefb; border-radius:4px; color:#1565C0; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">-20%</button>
-      <button onclick="applyModifier(1.08)" style="flex:1; padding:6px; font-size:13px; background:#fce4ec; border:1px solid #f8bbd0; border-radius:4px; color:#c2185b; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">+8%</button>
-      <button onclick="applyModifier(1.1)" style="flex:1; padding:6px; font-size:13px; background:#fce4ec; border:1px solid #f8bbd0; border-radius:4px; color:#c2185b; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">+10%</button>
-      <button onclick="inputNumpad('*')" style="flex:1; padding:6px; font-size:18px; background:#fff3e0; border:1px solid #ffe0b2; border-radius:4px; color:#e65100; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">×</button>
+      <button onclick="window.applyModifier(0.5)" style="flex:1; padding:6px; font-size:13px; background:#e3f2fd; border:1px solid #bbdefb; border-radius:4px; color:#1565C0; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">半額</button>
+      <button onclick="window.applyModifier(0.8)" style="flex:1; padding:6px; font-size:13px; background:#e3f2fd; border:1px solid #bbdefb; border-radius:4px; color:#1565C0; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">-20%</button>
+      <button onclick="window.applyModifier(1.08)" style="flex:1; padding:6px; font-size:13px; background:#fce4ec; border:1px solid #f8bbd0; border-radius:4px; color:#c2185b; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">+8%</button>
+      <button onclick="window.applyModifier(1.1)" style="flex:1; padding:6px; font-size:13px; background:#fce4ec; border:1px solid #f8bbd0; border-radius:4px; color:#c2185b; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">+10%</button>
+      <button onclick="window.inputNumpad('*')" style="flex:1; padding:6px; font-size:18px; background:#fff3e0; border:1px solid #ffe0b2; border-radius:4px; color:#e65100; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.05);">×</button>
     </div>
     <div class="numpad-grid">
-      <button onclick="inputNumpad('7')">7</button>
-      <button onclick="inputNumpad('8')">8</button>
-      <button onclick="inputNumpad('9')">9</button>
-      <button onclick="inputNumpad('BS')" style="background:#ff9800; color:white; border:none;">⌫</button>
+      <button onclick="window.inputNumpad('7')">7</button>
+      <button onclick="window.inputNumpad('8')">8</button>
+      <button onclick="window.inputNumpad('9')">9</button>
+      <button onclick="window.inputNumpad('BS')" style="background:#ff9800; color:white; border:none;">⌫</button>
 
-      <button onclick="inputNumpad('4')">4</button>
-      <button onclick="inputNumpad('5')">5</button>
-      <button onclick="inputNumpad('6')">6</button>
-      <button onclick="inputNumpad('CLEAR')" style="background:#f44336; color:white; border:none;">C</button>
+      <button onclick="window.inputNumpad('4')">4</button>
+      <button onclick="window.inputNumpad('5')">5</button>
+      <button onclick="window.inputNumpad('6')">6</button>
+      <button onclick="window.inputNumpad('CLEAR')" style="background:#f44336; color:white; border:none;">C</button>
 
-      <button onclick="inputNumpad('1')">1</button>
-      <button onclick="inputNumpad('2')">2</button>
-      <button onclick="inputNumpad('3')">3</button>
-      <button onclick="inputNumpad('ENTER')" style="background:#4CAF50; color:white; grid-row: span 2; border:none; line-height:1.2;">確定<br><span style="font-size:12px;">(次へ)</span></button>
+      <button onclick="window.inputNumpad('1')">1</button>
+      <button onclick="window.inputNumpad('2')">2</button>
+      <button onclick="window.inputNumpad('3')">3</button>
+      <button onclick="window.inputNumpad('ENTER')" style="background:#4CAF50; color:white; grid-row: span 2; border:none; line-height:1.2;">確定<br><span style="font-size:12px;">(次へ)</span></button>
 
-      <button onclick="inputNumpad('0')" style="grid-column: span 2;">0</button>
-      <button onclick="inputNumpad('.')">.</button>
+      <button onclick="window.inputNumpad('0')" style="grid-column: span 2;">0</button>
+      <button onclick="window.inputNumpad('.')">.</button>
     </div>
   </div>
 
   <div class="bottom-nav">
-    <button onclick="showScreen('dashboard-screen')"><span style="font-size:22px;">📊</span> 分析</button>
-    <button onclick="resetAndShowHome()"><span style="font-size:22px;">📦</span> 品物</button>
-    <button onclick="openNewRecord()"><span style="font-size:22px;">➕</span> 記録</button>
-    <button onclick="showScreen('cart-screen')">
+    <button onclick="window.showScreen('dashboard-screen')"><span style="font-size:22px;">📊</span> 分析</button>
+    <button onclick="window.resetAndShowHome()"><span style="font-size:22px;">📦</span> 品物</button>
+    <button onclick="window.openNewRecord()"><span style="font-size:22px;">➕</span> 記録</button>
+    <button onclick="window.showScreen('cart-screen')">
       <span style="font-size:22px;">🛒</span> カート
       <div id="cart-badge" class="badge">0</div>
     </button>
-    <button onclick="showScreen('settings-screen')"><span style="font-size:22px;">⚙️</span> 設定</button>
+    <button onclick="window.showScreen('settings-screen')"><span style="font-size:22px;">⚙️</span> 設定</button>
   </div>
 
   <script type="module">
@@ -375,6 +430,7 @@
     let records = [];
     let cartItems = []; 
     let currentUserId = localStorage.getItem('superOkomoUserId') || "";
+    let geminiApiKey = localStorage.getItem('kotomoGeminiApiKey') || "";
     
     let chartInstance = null; 
     let monthlyChartInstance = null; 
@@ -384,6 +440,7 @@
     let uniqueSuperNames = [];
     let topSupers = [];
     
+    // スコープ外から呼べるように全てwindowに紐付ける
     window.editingRecordId = null; 
     window.currentDetailItemName = "";
     window.returnToDetailFlag = false; 
@@ -404,11 +461,25 @@
     document.getElementById('cart-date-input').valueAsDate = new Date(); 
     document.getElementById('user-id-input').value = currentUserId;
 
+    if (geminiApiKey) {
+      document.getElementById('gemini-api-key-input').value = geminiApiKey;
+      document.getElementById('gemini-key-status').style.display = 'block';
+    }
+
+    document.getElementById('save-gemini-key-btn').addEventListener('click', () => {
+      const key = document.getElementById('gemini-api-key-input').value.trim();
+      if (!key) { window.showToast("APIキーを入力してください", true); return; }
+      geminiApiKey = key;
+      localStorage.setItem('kotomoGeminiApiKey', geminiApiKey);
+      document.getElementById('gemini-key-status').style.display = 'block';
+      window.showToast("AIのAPIキーを保存しました！");
+    });
+
     let toastTimeout;
     window.showToast = function(msg, isError = false) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
-      toast.style.backgroundColor = isError ? '#f44336' : '#333';
+      toast.style.backgroundColor = isError ? '#f44336' : 'rgba(50,50,50,0.9)';
       toast.classList.add('show');
       clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => toast.classList.remove('show'), 3000);
@@ -416,17 +487,19 @@
 
     function toHiragana(str) { return str.replace(/[\u30A1-\u30F6]/g, match => String.fromCharCode(match.charCodeAt(0) - 0x60)); }
 
+    window.showLoading = function(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+
     document.getElementById('save-id-btn').addEventListener('click', async () => {
       const inputId = document.getElementById('user-id-input').value.trim();
-      if (!inputId) { showToast("IDを入力してください！", true); return; }
+      if (!inputId) { window.showToast("IDを入力してください！", true); return; }
       currentUserId = inputId;
       localStorage.setItem('superOkomoUserId', currentUserId);
-      await loadDataFromCloud(true);
+      await window.loadDataFromCloud(true);
     });
 
-    async function loadDataFromCloud(goToDashboard = true) {
-      if (!currentUserId) { showScreen('settings-screen'); return; }
-      showLoading(true);
+    window.loadDataFromCloud = async function(goToDashboard = true) {
+      if (!currentUserId) { window.showScreen('settings-screen'); return; }
+      window.showLoading(true);
       try {
         const [recSnap, cartSnap] = await Promise.all([
           getDocs(query(collection(db, "records"), where("userId", "==", currentUserId))),
@@ -436,23 +509,21 @@
         records = []; recSnap.forEach(d => records.push({ id: d.id, ...d.data() }));
         cartItems = []; cartSnap.forEach(d => cartItems.push({ id: d.id, ...d.data() }));
         
-        updateDataLists(records.filter(r => !r.deleted));
-        updateBadge();
-        renderDashboard();
-        renderHome(); 
+        window.updateDataLists(records.filter(r => !r.deleted));
+        window.updateBadge();
+        window.renderDashboard();
+        window.renderHome(); 
 
-        if (document.getElementById('cart-screen').classList.contains('active')) renderCart();
-        if (goToDashboard) showScreen('dashboard-screen');
-      } catch (error) { console.error(error); showToast("通信エラーが発生しました", true); }
-      showLoading(false);
+        if (document.getElementById('cart-screen').classList.contains('active')) window.renderCart();
+        if (goToDashboard) window.showScreen('dashboard-screen');
+      } catch (error) { console.error(error); window.showToast("通信エラーが発生しました", true); }
+      window.showLoading(false);
     }
 
-    // 🌟 CSSでのアニメーションを解除し、純粋にDOMの表示状態から位置をリセットする
-    function resetSwipePositions() {
+    window.resetSwipePositions = function() {
       setTimeout(() => {
         document.querySelectorAll('.swipe-wrap').forEach(w => {
           if (w.scrollWidth > w.clientWidth) {
-            // オレンジ（メモ）または青（カート追加）が左にある場合は初期位置をずらす
             if (w.querySelector('.bg-blue') || w.querySelector('.bg-orange')) {
               w.scrollLeft = 110; 
             } else {
@@ -467,12 +538,12 @@
       const m = document.getElementById('tools-modal'); 
       if(m.style.display === 'block') {
         m.style.display = 'none';
-        closeNumpad(); 
+        window.closeNumpad(); 
       } else {
         const headerHeight = document.getElementById('main-header').offsetHeight;
         m.style.top = headerHeight + 'px'; 
         m.style.display = 'block'; 
-        switchToolsTab('market');
+        window.switchToolsTab('market');
         const btnCart = document.getElementById('market-to-cart-btn');
         if(btnCart) btnCart.style.display = 'block';
       }
@@ -491,7 +562,7 @@
       document.getElementById('tools-modal').style.display = 'block';
       const headerHeight = document.getElementById('main-header').offsetHeight;
       document.getElementById('tools-modal').style.top = headerHeight + 'px'; 
-      switchToolsTab('market');
+      window.switchToolsTab('market');
 
       document.getElementById('market-name-input').value = itemName;
       document.getElementById('market-price').value = price;
@@ -503,8 +574,7 @@
         btnCart.style.display = fromCart ? 'none' : 'block';
       }
 
-      calcMarket();
-      
+      window.calcMarket();
       setTimeout(() => { 
         if (!price) {
           document.getElementById('market-price').focus(); 
@@ -515,14 +585,14 @@
     };
 
     window.openMarketFromDetail = function() {
-      openMarketWithItem(window.currentDetailItemName, false);
+      window.openMarketWithItem(window.currentDetailItemName, false);
     };
 
     window.clearMarket = function() {
       document.getElementById('market-name-input').value = '';
       document.getElementById('market-price').value = '';
       document.getElementById('market-amount').value = '';
-      calcMarket();
+      window.calcMarket();
     };
 
     window.getMarketStatus = function(itemName, currentUnitPrice) {
@@ -536,44 +606,27 @@
         sum += r.unitPrice;
       });
       const spread = max - min;
-
-      let color = '';
-      let text = '';
+      let color = '', text = '';
 
       if (allRecords.length === 1 || spread === 0) {
-        if (currentUnitPrice < min) {
-          color = '#4CAF50'; text = '👑 最安';
-        } else if (currentUnitPrice > max) {
-          color = '#F44336'; text = '🚨 最高';
-        } else {
-          color = '#FF9800'; text = '⚖️ 同額';
-        }
+        if (currentUnitPrice < min) { color = '#4CAF50'; text = '👑 最安'; } 
+        else if (currentUnitPrice > max) { color = '#F44336'; text = '🚨 最高'; } 
+        else { color = '#FF9800'; text = '⚖️ 同額'; }
       } else {
         if (currentUnitPrice < min) {
           const drop = min - currentUnitPrice;
-          if (drop > spread) {
-              color = '#4CAF50'; text = '🤯 爆安';
-          } else {
-              color = '#4CAF50'; text = '👑 最安';
-          }
+          if (drop > spread) { color = '#4CAF50'; text = '🤯 爆安'; } 
+          else { color = '#4CAF50'; text = '👑 最安'; }
         } else if (currentUnitPrice > max) {
           const jump = currentUnitPrice - max;
-          if (jump > spread) {
-              color = '#F44336'; text = '😱 激高';
-          } else {
-              color = '#F44336'; text = '🚨 最高';
-          }
+          if (jump > spread) { color = '#F44336'; text = '😱 激高'; } 
+          else { color = '#F44336'; text = '🚨 最高'; }
         } else {
           let percent = ((currentUnitPrice - min) / spread) * 100;
-          if (percent <= 10) {
-              color = '#8BC34A'; text = '🤩 安め';
-          } else if (percent < 50) {
-              color = '#8BC34A'; text = '👍 やや安';
-          } else if (percent <= 90) {
-              color = '#FF9800'; text = '🤔 高め';
-          } else {
-              color = '#FF9800'; text = '😥 高い';
-          }
+          if (percent <= 10) { color = '#8BC34A'; text = '🤩 安め'; } 
+          else if (percent < 50) { color = '#8BC34A'; text = '👍 やや安'; } 
+          else if (percent <= 90) { color = '#FF9800'; text = '🤔 高め'; } 
+          else { color = '#FF9800'; text = '😥 高い'; }
         }
       }
       return { color, text, min, max, avg: sum/allRecords.length, spread };
@@ -602,7 +655,7 @@
         const currentUnit = unit === '個' ? (price / amount) : ((price / amount) * 100);
         disp.textContent = unit === '個' ? `今回単価: ${currentUnit.toFixed(1)}円 / 1個` : `今回単価: ${currentUnit.toFixed(1)}円 / 100g`;
 
-        const status = getMarketStatus(nameStr, currentUnit);
+        const status = window.getMarketStatus(nameStr, currentUnit);
 
         if (!status) {
           document.getElementById('market-gauge-area').style.display = 'none';
@@ -665,13 +718,11 @@
       const aRaw = document.getElementById('market-amount').value;
       const unit = document.getElementById('market-unit').value;
       if (!name) return;
-      
       let price = '', amount = '';
       try { if(pRaw) price = eval(pRaw); } catch(e){}
       try { if(aRaw) amount = eval(aRaw); } catch(e){}
-
-      addToCartWithData(name, price, amount, unit);
-      toggleTools();
+      window.addToCartWithData(name, price, amount, unit);
+      window.toggleTools();
     };
 
     window.marketToRecord = function() {
@@ -680,14 +731,11 @@
       const aRaw = document.getElementById('market-amount').value;
       const unit = document.getElementById('market-unit').value;
       if (!name) return;
-
       let price = '', amount = '';
       try { if(pRaw) price = eval(pRaw); } catch(e){}
       try { if(aRaw) amount = eval(aRaw); } catch(e){}
-
-      toggleTools();
-      openNewRecord();
-      
+      window.toggleTools();
+      window.openNewRecord();
       document.getElementById('item-input').value = name;
       if(price) document.getElementById('price-input').value = price;
       if(amount) document.getElementById('amount-input').value = amount;
@@ -695,10 +743,14 @@
       window.calcUnitPrice();
     };
 
-    async function addToCartWithData(nameStr, price, amount, unit) {
+    window.addToCartWithData = async function(nameStr, price, amount, unit) {
       const hiraName = toHiragana(nameStr);
       const existingMatch = uniqueItemNames.find(e => toHiragana(e) === hiraName && hiraName !== "");
       const finalName = existingMatch ? existingMatch : nameStr;
+
+      const latest = finalName ? records.filter(r => r.itemName === finalName && !r.deleted).sort((a,b) => b.createdAt - a.createdAt)[0] : null;
+      const defaultAmount = latest ? latest.amount : '';
+      const defaultUnit = latest ? latest.unit : '個';
 
       const newItem = {
         userId: currentUserId, itemName: finalName, status: 'incart', checked: false,
@@ -706,22 +758,22 @@
         superName: '', date: '', createdAt: Date.now()
       };
 
-      showLoading(true);
+      window.showLoading(true);
       try {
         const docRef = await addDoc(collection(db, "cart"), newItem);
         cartItems.push({ id: docRef.id, ...newItem });
-        updateDataLists(records.filter(r => !r.deleted)); 
-        updateBadge();
-        showToast(`🛒 ${finalName} を追加`);
-        resetSwipePositions();
+        window.updateDataLists(records.filter(r => !r.deleted)); 
+        window.updateBadge();
+        window.showToast(`🛒 ${finalName} を追加`);
+        window.resetSwipePositions();
         
         if (document.getElementById('cart-screen').classList.contains('active')) {
-          renderCart();
+          window.renderCart();
         } else if (document.getElementById('dashboard-screen').classList.contains('active')) {
-          renderDashboard(); 
+          window.renderDashboard(); 
         }
-      } catch(e) { showToast("追加に失敗しました", true); }
-      showLoading(false);
+      } catch(e) { window.showToast("追加に失敗しました", true); }
+      window.showLoading(false);
     }
 
     let currentNumpadInput = null;
@@ -732,12 +784,12 @@
         document.getElementById('numpad-modal').classList.add('show');
         setTimeout(() => { e.target.scrollIntoView({ behavior: "smooth", block: "center" }); }, 300);
       } else {
-        closeNumpad();
+        window.closeNumpad();
       }
     });
 
     document.addEventListener('click', function(e) {
-      if (!e.target.closest('#numpad-modal') && !e.target.closest('.num-input') && !e.target.closest('.tools-modal')) { closeNumpad(); }
+      if (!e.target.closest('#numpad-modal') && !e.target.closest('.num-input') && !e.target.closest('.tools-modal')) { window.closeNumpad(); }
     });
 
     document.querySelectorAll('#numpad-modal button').forEach(btn => {
@@ -750,7 +802,6 @@
       let val = input.value;
       try { val = eval(val); } catch(e) { return; }
       if (isNaN(val) || val === undefined) return;
-      
       input.value = Math.floor(val * multiplier);
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
@@ -760,11 +811,9 @@
     window.inputNumpad = function(val) {
       if(!currentNumpadInput) return;
       const input = currentNumpadInput;
-      
       let start = input.selectionStart;
       let end = input.selectionEnd;
       if (typeof start !== 'number') { start = input.value.length; end = input.value.length; }
-      
       let text = input.value;
 
       if (val === 'BS') {
@@ -780,7 +829,7 @@
         const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
         input.dispatchEvent(e);
         setTimeout(() => {
-          if (currentNumpadInput === input) closeNumpad(); 
+          if (currentNumpadInput === input) window.closeNumpad(); 
         }, 50);
         return;
       } else {
@@ -809,7 +858,7 @@
       }
     };
 
-    function setupEnterNavigation(currentId, nextId) {
+    window.setupEnterNavigation = function(currentId, nextId) {
       const ele = document.getElementById(currentId);
       if(ele) {
         ele.addEventListener('keydown', function(e) {
@@ -820,27 +869,26 @@
       }
     }
 
-    setupEnterNavigation('date-input', 'super-input');
-    setupEnterNavigation('super-input', 'item-input');
-    setupEnterNavigation('item-input', 'price-input');
-    setupEnterNavigation('price-input', 'amount-input');
-    setupEnterNavigation('amount-input', 'memo-input'); 
+    window.setupEnterNavigation('date-input', 'super-input');
+    window.setupEnterNavigation('super-input', 'item-input');
+    window.setupEnterNavigation('item-input', 'price-input');
+    window.setupEnterNavigation('price-input', 'amount-input');
+    window.setupEnterNavigation('amount-input', 'memo-input'); 
 
-    setupEnterNavigation('cart-date-input', 'cart-super-input');
-    setupEnterNavigation('cart-super-input', 'cart-add-input');
+    window.setupEnterNavigation('cart-date-input', 'cart-super-input');
+    window.setupEnterNavigation('cart-super-input', 'cart-add-input');
     
-    setupEnterNavigation('market-name-input', 'market-price');
-    setupEnterNavigation('market-price', 'market-amount');
+    window.setupEnterNavigation('market-name-input', 'market-price');
+    window.setupEnterNavigation('market-price', 'market-amount');
 
     document.getElementById('cart-add-input').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addCustomToCart(); }
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); window.addCustomToCart(); }
     });
 
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.isComposing) {
         const targetId = e.target.id;
         if (!targetId) return;
-
         if (targetId.startsWith('cart-price-') || targetId.startsWith('pend-price-')) {
           e.preventDefault(); const parts = targetId.split('-'); const nextEle = document.getElementById(`${parts[0]}-amount-${parts[2]}`); if (nextEle) nextEle.focus();
         } 
@@ -850,7 +898,6 @@
       }
     });
 
-    // 単価計算関数
     window.calcUnitPrice = function() {
       const pRaw = document.getElementById('price-input').value;
       const aRaw = document.getElementById('amount-input').value;
@@ -961,7 +1008,7 @@
             const inCart = cartItems.find(c => c.itemName === itemName && c.status === 'incart');
             if(!inCart) {
               const dStr = Math.floor(passedDays) === 0 ? '今日' : `${Math.floor(passedDays)}日前`;
-              remindHtml += `<div class="remind-card"><div><div style="font-size:14px; font-weight:bold; color:#333;">${itemName}</div><div style="font-size:10px; color:#555; margin-top:2px;">前回: ${dStr}</div></div><button onclick="addToCart('${itemName}')">+ カートへ</button></div>`;
+              remindHtml += `<div class="remind-card"><div><div style="font-size:14px; font-weight:bold; color:#333;">${itemName}</div><div style="font-size:10px; color:#555; margin-top:2px;">前回: ${dStr}</div></div><button onclick="window.addToCart('${itemName}')">+ カートへ</button></div>`;
             }
           }
         }
@@ -971,7 +1018,7 @@
       else { remindArea.style.display = 'none'; }
     };
 
-    function updateBadge() {
+    window.updateBadge = function() {
       const incarts = cartItems.filter(c => c.status === 'incart').length;
       const pendings = cartItems.filter(c => c.status === 'pending').length;
       
@@ -1009,7 +1056,7 @@
       document.getElementById('cart-pending-area').style.display = 'none';
       document.getElementById(`tab-${tabName}`).classList.add('active');
       document.getElementById(`cart-${tabName}-area`).style.display = 'block';
-      renderCart();
+      window.renderCart();
     };
 
     window.addToCart = async function(itemName) {
@@ -1027,47 +1074,45 @@
         superName: '', date: '', createdAt: Date.now()
       };
 
-      showLoading(true);
+      window.showLoading(true);
       try {
         const docRef = await addDoc(collection(db, "cart"), newItem);
         cartItems.push({ id: docRef.id, ...newItem });
-        updateDataLists(records.filter(r => !r.deleted)); 
-        updateBadge();
-        const toastMsg = finalName ? `🛒 ${finalName} を追加` : "🛒 商品をカートに追加しました";
-        showToast(toastMsg);
-        resetSwipePositions();
+        window.updateDataLists(records.filter(r => !r.deleted)); 
+        window.updateBadge();
+        window.showToast(`🛒 ${finalName} を追加`);
+        window.resetSwipePositions();
         
         if (document.getElementById('cart-screen').classList.contains('active')) {
-          renderCart();
+          window.renderCart();
         } else if (document.getElementById('dashboard-screen').classList.contains('active')) {
-          renderDashboard(); 
+          window.renderDashboard(); 
         }
-      } catch(e) { showToast("追加に失敗しました", true); }
-      showLoading(false);
+      } catch(e) { window.showToast("追加に失敗しました", true); }
+      window.showLoading(false);
     };
 
     window.addCustomToCart = function() {
       const input = document.getElementById('cart-add-input');
       const val = input.value.trim();
-      addToCart(val);
+      window.addToCart(val);
       input.value = '';
       document.getElementById('cart-add-suggestions').style.display = 'none';
     };
 
     window.deleteCartItem = async function(cartId) {
-      showLoading(true);
+      window.showLoading(true);
       try {
         await deleteDoc(doc(db, "cart", cartId));
         cartItems = cartItems.filter(c => c.id !== cartId);
         removeLocalCartInput(cartId); 
-        updateDataLists(records.filter(r => !r.deleted)); 
-        updateBadge();
-        renderCart();
-      } catch(e) { showToast("削除に失敗", true); }
-      showLoading(false);
+        window.updateDataLists(records.filter(r => !r.deleted)); 
+        window.updateBadge();
+        window.renderCart();
+      } catch(e) { window.showToast("削除に失敗", true); }
+      window.showLoading(false);
     };
 
-    // 🌟 修正：チェック時はDOMだけを操作して renderCart を呼ばない（チラつき撲滅）
     window.toggleCartCheck = function(cartId) {
       const cb = document.getElementById(`cart-check-${cartId}`);
       if (!cb) return;
@@ -1090,7 +1135,7 @@
         }
       }
 
-      calcCartTotal();
+      window.calcCartTotal();
     };
 
     window.toggleCartBody = function(cartId) {
@@ -1124,7 +1169,7 @@
 
       if (price > 0 && amount > 0) {
         const currentUnit = unit === '個' ? (price / amount) : ((price / amount) * 100);
-        const status = getMarketStatus(itemName, currentUnit);
+        const status = window.getMarketStatus(itemName, currentUnit);
         if (status) {
           iconSpan.innerHTML = `<span style="display:inline-block; width:44px; text-align:center; background:${status.color}; color:white; font-size:10px; padding:2px 6px; border-radius:10px;">${status.text}</span>`;
         } else {
@@ -1133,6 +1178,55 @@
       } else {
         iconSpan.innerHTML = '';
       }
+    }
+
+    window.memoCartItem = async function(cartId) {
+      const c = cartItems.find(item => item.id === cartId);
+      if (!c) return;
+
+      const date = document.getElementById('cart-date-input').value;
+      const superName = document.getElementById('cart-super-input').value.trim();
+
+      const pInput = document.getElementById(`cart-price-${c.id}`) || document.getElementById(`pend-price-${c.id}`);
+      const aInput = document.getElementById(`cart-amount-${c.id}`) || document.getElementById(`pend-amount-${c.id}`);
+      const uInput = document.getElementById(`cart-unit-${c.id}`) || document.getElementById(`pend-unit-${c.id}`);
+      const mInput = document.getElementById(`cart-memo-${c.id}`) || document.getElementById(`pend-memo-${c.id}`);
+
+      const pRaw = pInput ? pInput.value : '';
+      const aRaw = aInput ? aInput.value : '';
+      let price = 0, amount = 0;
+      try { price = eval(pRaw); } catch(e){}
+      try { amount = eval(aRaw); } catch(e){}
+      const unit = uInput ? uInput.value : '個';
+      const memo = mInput ? mInput.value : '';
+
+      if (!date || !superName) { 
+        window.showToast("購入日とスーパー名を入れてください！", true); 
+        return; 
+      }
+      if (pRaw === "" || aRaw === "" || isNaN(price) || isNaN(amount) || amount === 0) { 
+        window.showToast("価格と内容量を正しく入力してください", true); 
+        const bodyId = `cart-body-${c.id}`;
+        const b = document.getElementById(bodyId);
+        if (b && !b.classList.contains('open')) window.toggleCartBody(c.id);
+        return; 
+      }
+
+      window.showLoading(true);
+      try {
+        const unitPrice = unit === '個' ? (price / amount) : ((price / amount) * 100);
+        const newRecord = { userId: currentUserId, date, superName, itemName: c.itemName, price, amount, unit, unitPrice, memo, deleted: false, createdAt: Date.now(), isMemo: true };
+        await addDoc(collection(db, "records"), newRecord);
+        await deleteDoc(doc(db, "cart", c.id));
+        cartItems = cartItems.filter(item => item.id !== c.id);
+        removeLocalCartInput(c.id); 
+        
+        window.showToast(`📝 ${c.itemName} を価格メモとして記録しました！`);
+        window.updateDataLists(records.filter(r => !r.deleted));
+        await window.loadDataFromCloud(false);
+        window.renderCart();
+      } catch (e) { window.showToast("保存に失敗しました", true); }
+      window.showLoading(false);
     }
 
     window.renderCart = function() {
@@ -1156,7 +1250,7 @@
         try{ a = eval(dAmount); }catch(e){}
         if(p>0 && a>0 && displayName !== '(商品名未入力)') {
            const curUnit = dUnit === '個' ? (p/a) : ((p/a)*100);
-           const mStatus = getMarketStatus(displayName, curUnit);
+           const mStatus = window.getMarketStatus(displayName, curUnit);
            if(mStatus) {
                marketBadge = `<span style="display:inline-block; width:44px; text-align:center; background:${mStatus.color}; color:white; font-size:10px; padding:2px 6px; border-radius:10px; vertical-align:middle;">${mStatus.text}</span>`;
            } else {
@@ -1170,11 +1264,11 @@
           const checkedClass = c.checked ? 'item-checked' : '';
           
           wrap.innerHTML = `
-            <div class="swipe-action bg-orange" onclick="memoCartItem('${c.id}')" style="border-radius:8px 0 0 8px; margin-right:2px;">📝<br>メモ</div>
+            <div class="swipe-action bg-orange" onclick="window.memoCartItem('${c.id}')" style="border-radius:8px 0 0 8px; margin-right:2px;">📝<br>メモ</div>
             <div class="swipe-main ${checkedClass}" style="padding:0; border-radius:0; overflow:hidden; display:flex; flex-direction:column;">
               <div style="display:flex; width:100%; align-items:stretch;">
                 
-                <div style="flex:1; display:flex; align-items:flex-start; padding:15px 10px; cursor:pointer;" onclick="toggleCartCheck('${c.id}')">
+                <div style="flex:1; display:flex; align-items:flex-start; padding:15px 10px; cursor:pointer;" onclick="window.toggleCartCheck('${c.id}')">
                   <input type="checkbox" id="cart-check-${c.id}" ${c.checked ? 'checked' : ''} style="margin:0 10px 0 0; width:20px; height:20px; flex-shrink:0; pointer-events:none;">
                   <div style="flex:1; line-height:1.4;">
                     <span class="item-name-text" style="font-weight:bold; font-size:16px;">${displayName}</span>
@@ -1182,32 +1276,32 @@
                   </div>
                 </div>
 
-                <div style="width:60px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fafafa; border-left:1px solid #eee; flex-shrink:0;" onclick="toggleCartBody('${c.id}')">
+                <div style="width:60px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fafafa; border-left:1px solid #eee; flex-shrink:0;" onclick="window.toggleCartBody('${c.id}')">
                   <span style="font-size:12px; color:#aaa;">▼編集</span>
                 </div>
                 
               </div>
               <div class="cart-body ${openClass}" id="cart-body-${c.id}">
                 <div class="cart-input-row" style="align-items:center;">
-                  <input type="text" inputmode="none" class="num-input" id="cart-price-${c.id}" placeholder="価格" value="${dPrice}" style="flex:1.2;" oninput="calcCartTotal()">
+                  <input type="text" inputmode="none" class="num-input" id="cart-price-${c.id}" placeholder="価格" value="${dPrice}" style="flex:1.2;" oninput="window.calcCartTotal()">
                   <input type="text" inputmode="none" class="num-input" id="cart-amount-${c.id}" placeholder="量" value="${dAmount}" style="flex:1;">
                   <select id="cart-unit-${c.id}" style="flex:0.8; height:37px;">
                     <option value="個" ${dUnit==='個'?'selected':''}>個</option>
                     <option value="g" ${dUnit==='g'?'selected':''}>g</option>
                   </select>
-                  <button onclick="openMarketWithItem('${displayName}', true, document.getElementById('cart-price-${c.id}').value, document.getElementById('cart-amount-${c.id}').value, document.getElementById('cart-unit-${c.id}').value)" style="background:#fff; border:1px solid #FF9800; color:#FF9800; border-radius:4px; padding:0 12px; font-size:16px; box-shadow:0 1px 2px rgba(0,0,0,0.1); height:37px; display:flex; align-items:center; justify-content:center;">📈</button>
+                  <button onclick="window.openMarketWithItem('${displayName}', true, document.getElementById('cart-price-${c.id}').value, document.getElementById('cart-amount-${c.id}').value, document.getElementById('cart-unit-${c.id}').value)" style="background:#fff; border:1px solid #FF9800; color:#FF9800; border-radius:4px; padding:0 12px; font-size:16px; box-shadow:0 1px 2px rgba(0,0,0,0.1); height:37px; display:flex; align-items:center; justify-content:center;">📈</button>
                 </div>
                 <input type="text" id="cart-memo-${c.id}" placeholder="感想・メモ" value="${dMemo}" style="width:100%; padding:8px; font-size:14px; margin-top:0;">
               </div>
             </div>
-            <div class="swipe-action bg-red" onclick="deleteCartItem('${c.id}')" style="border-radius:0 8px 8px 0; margin-left:2px;">削除</div>
+            <div class="swipe-action bg-red" onclick="window.deleteCartItem('${c.id}')" style="border-radius:0 8px 8px 0; margin-left:2px;">削除</div>
           `;
           incartList.appendChild(wrap);
         } else if (c.status === 'pending') {
           const wrap = document.createElement('div');
           wrap.className = 'swipe-wrap';
           wrap.innerHTML = `
-            <div class="swipe-action bg-orange" onclick="memoCartItem('${c.id}')" style="border-radius:8px 0 0 8px; margin-right:2px;">📝<br>メモ</div>
+            <div class="swipe-action bg-orange" onclick="window.memoCartItem('${c.id}')" style="border-radius:8px 0 0 8px; margin-right:2px;">📝<br>メモ</div>
             <div class="swipe-main" style="padding:15px; border-left: 5px solid #FF9800; border-radius:0;">
               <div style="margin-bottom:5px; line-height:1.4;">
                 <span class="item-name-text" style="font-weight:bold; font-size:16px;">${displayName}</span>
@@ -1225,17 +1319,17 @@
               </div>
               <input type="text" id="pend-memo-${c.id}" placeholder="感想・メモ" value="${dMemo}" style="width:100%; padding:8px; font-size:14px; margin-bottom:10px;">
               <div style="display:flex; gap:10px;">
-                <button onclick="savePending('${c.id}', false)" style="flex:1; padding:10px; background:#4CAF50; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">🛒 購入記録</button>
-                <button onclick="savePending('${c.id}', true)" style="flex:1; padding:10px; background:#FF9800; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">📝 メモ記録</button>
+                <button onclick="window.savePending('${c.id}', false)" style="flex:1; padding:10px; background:#4CAF50; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">🛒 購入記録</button>
+                <button onclick="window.savePending('${c.id}', true)" style="flex:1; padding:10px; background:#FF9800; color:white; border:none; border-radius:5px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">📝 メモ記録</button>
               </div>
             </div>
-            <div class="swipe-action bg-red" onclick="deleteCartItem('${c.id}')" style="border-radius:0 8px 8px 0; margin-left:2px;">削除</div>
+            <div class="swipe-action bg-red" onclick="window.deleteCartItem('${c.id}')" style="border-radius:0 8px 8px 0; margin-left:2px;">削除</div>
           `;
           pendingList.appendChild(wrap);
         }
       });
-      calcCartTotal();
-      resetSwipePositions();
+      window.calcCartTotal();
+      window.resetSwipePositions();
     };
 
     document.addEventListener('input', function(e) {
@@ -1245,7 +1339,7 @@
       if (e.target && (e.target.id.startsWith('cart-price-') || e.target.id.startsWith('cart-amount-') || e.target.id.startsWith('cart-memo-') || e.target.id.startsWith('pend-price-') || e.target.id.startsWith('pend-amount-') || e.target.id.startsWith('pend-memo-'))) {
         
         if (e.target.id.includes('-price-') || e.target.id.includes('-amount-')) {
-          calcCartTotal();
+          window.calcCartTotal();
         }
         
         const parts = e.target.id.split('-'); 
@@ -1256,10 +1350,10 @@
         const item = cartItems.find(c => c.id === cartId);
         if(item) item[field] = e.target.value;
         
-        updateCartMarketIcon(cartId);
+        window.updateCartMarketIcon(cartId);
       }
       if (e.target && e.target.id.startsWith('market-')) {
-        calcMarket();
+        window.calcMarket();
       }
     });
 
@@ -1276,10 +1370,10 @@
         const item = cartItems.find(c => c.id === cartId);
         if(item) item[field] = e.target.value;
         
-        updateCartMarketIcon(cartId);
+        window.updateCartMarketIcon(cartId);
       }
       if (e.target && e.target.id.startsWith('market-')) {
-        calcMarket();
+        window.calcMarket();
       }
     });
 
@@ -1289,14 +1383,14 @@
       const targets = cartItems.filter(c => c.status === 'incart');
       let checkedCount = 0, moveCount = 0, pendCount = 0;
 
-      showLoading(true);
+      window.showLoading(true);
       try {
         for (const c of targets) {
           const isChecked = document.getElementById(`cart-check-${c.id}`).checked;
           if (!isChecked) continue;
           checkedCount++;
 
-          if (!date || !superName) { showToast("購入日とスーパー名を入れてください！", true); showLoading(false); return; }
+          if (!date || !superName) { window.showToast("購入日とスーパー名を入れてください！", true); window.showLoading(false); return; }
 
           const pRaw = document.getElementById(`cart-price-${c.id}`).value, aRaw = document.getElementById(`cart-amount-${c.id}`).value;
           let price = 0, amount = 0;
@@ -1320,15 +1414,15 @@
             pendCount++;
           }
         }
-        if (checkedCount === 0) { showToast("チェックされた商品がありません", true); }
+        if (checkedCount === 0) { window.showToast("チェックされた商品がありません", true); }
         else {
-          showToast(`購入完了！ 記録:${moveCount}件 / 後で入力:${pendCount}件`);
-          updateDataLists(records.filter(r => !r.deleted));
-          await loadDataFromCloud(false);
-          renderCart();
+          window.showToast(`購入完了！ 記録:${moveCount}件 / 後で入力:${pendCount}件`);
+          window.updateDataLists(records.filter(r => !r.deleted));
+          await window.loadDataFromCloud(false);
+          window.renderCart();
         }
-      } catch (e) { showToast("処理に失敗しました", true); }
-      showLoading(false);
+      } catch (e) { window.showToast("処理に失敗しました", true); }
+      window.showLoading(false);
     };
 
     window.savePending = async function(cartId, isMemo) {
@@ -1341,9 +1435,9 @@
       try { amount = eval(aRaw); } catch(e){}
       const unit = document.getElementById(`pend-unit-${c.id}`).value, memo = document.getElementById(`pend-memo-${c.id}`).value;
 
-      if (pRaw === "" || aRaw === "" || isNaN(price) || isNaN(amount)) { showToast("価格と内容量を正しく入力してください", true); return; }
+      if (pRaw === "" || aRaw === "" || isNaN(price) || isNaN(amount)) { window.showToast("価格と内容量を正しく入力してください", true); return; }
 
-      showLoading(true);
+      window.showLoading(true);
       try {
         const unitPrice = unit === '個' ? (price / amount) : ((price / amount) * 100);
         const newRecord = { userId: currentUserId, date: c.date, superName: c.superName, itemName: c.itemName, price, amount, unit, unitPrice, memo, deleted: false, createdAt: Date.now(), isMemo: isMemo };
@@ -1352,43 +1446,43 @@
         cartItems = cartItems.filter(item => item.id !== c.id);
         removeLocalCartInput(c.id); 
         
-        showToast(isMemo ? "📝 メモとして記録を完了しました！" : "🛒 購入として記録を完了しました！");
-        updateDataLists(records.filter(r => !r.deleted));
-        await loadDataFromCloud(false);
-        renderCart();
-      } catch (e) { showToast("保存に失敗しました", true); }
-      showLoading(false);
+        window.showToast(isMemo ? "📝 メモとして記録を完了しました！" : "🛒 購入として記録を完了しました！");
+        window.updateDataLists(records.filter(r => !r.deleted));
+        await window.loadDataFromCloud(false);
+        window.renderCart();
+      } catch (e) { window.showToast("保存に失敗しました", true); }
+      window.showLoading(false);
     };
 
     window.logicalDeleteItem = async function(itemName) {
       if (confirm(`「${itemName}」の記録をすべて削除しますか？`)) {
-        showLoading(true);
+        window.showLoading(true);
         try {
           const itemRecords = records.filter(r => r.itemName === itemName && !r.deleted);
           for (const r of itemRecords) await updateDoc(doc(db, "records", r.id), { deleted: true });
-          showToast(`「${itemName}」を削除しました`);
-          await loadDataFromCloud(false);
-        } catch(e) { showToast("削除に失敗", true); }
-        showLoading(false);
+          window.showToast(`「${itemName}」を削除しました`);
+          await window.loadDataFromCloud(false);
+        } catch(e) { window.showToast("削除に失敗", true); }
+        window.showLoading(false);
       }
     };
     window.logicalDeleteRecord = async function(id) {
       if (confirm("この記録を削除しますか？")) {
-        showLoading(true);
-        try { await updateDoc(doc(db, "records", id), { deleted: true }); showToast("削除しました"); await loadDataFromCloud(false); window.showDetail(window.currentDetailItemName); } catch(e) { showToast("削除に失敗", true); }
-        showLoading(false);
+        window.showLoading(true);
+        try { await updateDoc(doc(db, "records", id), { deleted: true }); window.showToast("削除しました"); await window.loadDataFromCloud(false); window.showDetail(window.currentDetailItemName); } catch(e) { window.showToast("削除に失敗", true); }
+        window.showLoading(false);
       }
     };
     window.restoreRecord = async function(id) {
-      showLoading(true);
-      try { await updateDoc(doc(db, "records", id), { deleted: false }); showToast("復元しました"); await loadDataFromCloud(false); renderTrash(); } catch(e) { showToast("復元に失敗", true); }
-      showLoading(false);
+      window.showLoading(true);
+      try { await updateDoc(doc(db, "records", id), { deleted: false }); window.showToast("復元しました"); await window.loadDataFromCloud(false); window.renderTrash(); } catch(e) { window.showToast("復元に失敗", true); }
+      window.showLoading(false);
     };
     window.physicalDeleteRecord = async function(id) {
       if (confirm("完全に削除しますか？")) {
-        showLoading(true);
-        try { await deleteDoc(doc(db, "records", id)); showToast("完全削除しました"); await loadDataFromCloud(false); renderTrash(); } catch(e) { showToast("削除に失敗", true); }
-        showLoading(false);
+        window.showLoading(true);
+        try { await deleteDoc(doc(db, "records", id)); window.showToast("完全削除しました"); await window.loadDataFromCloud(false); window.renderTrash(); } catch(e) { window.showToast("削除に失敗", true); }
+        window.showLoading(false);
       }
     };
 
@@ -1406,7 +1500,10 @@
       document.getElementById('save-record-btn').textContent = "🛒 購入として保存";
       document.getElementById('save-memo-btn').textContent = "📝 メモとして保存";
 
-      showScreen('record-screen');
+      const receiptBtn = document.getElementById('record-receipt-btn');
+      if(receiptBtn) receiptBtn.style.display = 'block';
+
+      window.showScreen('record-screen');
     };
     
     window.cancelRecord = function() {
@@ -1427,7 +1524,7 @@
         window.showDetail(window.currentDetailItemName);
         window.returnToDetailFlag = false;
       } else {
-        showScreen('home-screen');
+        window.showScreen('home-screen');
       }
     };
 
@@ -1450,7 +1547,10 @@
       document.getElementById('save-record-btn').textContent = "🛒 購入として保存";
       document.getElementById('save-memo-btn').textContent = "📝 メモとして保存";
 
-      showScreen('record-screen');
+      const receiptBtn = document.getElementById('record-receipt-btn');
+      if(receiptBtn) receiptBtn.style.display = 'block';
+
+      window.showScreen('record-screen');
     };
     
     window.editRecord = function(recordId) {
@@ -1472,11 +1572,14 @@
       
       document.getElementById('save-record-btn').textContent = "✏️ 購入で上書き";
       document.getElementById('save-memo-btn').textContent = "✏️ メモで上書き";
+
+      const receiptBtn = document.getElementById('record-receipt-btn');
+      if(receiptBtn) receiptBtn.style.display = 'none';
       
-      showScreen('record-screen');
+      window.showScreen('record-screen');
     };
 
-    const saveRecordData = async (isMemo) => {
+    window.saveRecordData = async function(isMemo) {
       const date = document.getElementById('date-input').value; 
       let superName = document.getElementById('super-input').value.trim(); 
       let itemName = document.getElementById('item-input').value.trim();
@@ -1487,21 +1590,21 @@
       try { amount = eval(aRaw); } catch(e){}
       const unit = document.getElementById('unit-input').value, memo = document.getElementById('memo-input').value;
       
-      if (!date || !superName || !itemName || isNaN(price) || isNaN(amount) || amount === 0) { showToast("入力漏れがあります！", true); return; }
+      if (!date || !superName || !itemName || isNaN(price) || isNaN(amount) || amount === 0) { window.showToast("入力漏れがあります！", true); return; }
       const existingMatch = uniqueItemNames.find(e => toHiragana(e) === toHiragana(itemName)); if (existingMatch) itemName = existingMatch;
       const existingSuperMatch = uniqueSuperNames.find(e => toHiragana(e) === toHiragana(superName)); if (existingSuperMatch) superName = existingSuperMatch;
       
       const recordData = { userId: currentUserId, date, superName, itemName, price, amount, unit, unitPrice: (unit === '個' ? price/amount : (price/amount)*100), memo, deleted: false, isMemo: isMemo };
       
-      showLoading(true);
+      window.showLoading(true);
       try {
         if (window.editingRecordId) { 
             await updateDoc(doc(db, "records", window.editingRecordId), recordData); 
-            showToast("修正しました！"); 
+            window.showToast("修正しました！"); 
         } else { 
             recordData.createdAt = Date.now(); 
             await addDoc(collection(db, "records"), recordData); 
-            showToast(isMemo ? "📝 価格メモを保存しました！" : "🛒 購入記録を保存しました！"); 
+            window.showToast(isMemo ? "📝 価格メモを保存しました！" : "🛒 購入記録を保存しました！"); 
         }
         
         document.getElementById('price-input').value = ''; document.getElementById('amount-input').value = ''; document.getElementById('memo-input').value = ''; document.getElementById('item-input').value = ''; 
@@ -1510,29 +1613,28 @@
         document.getElementById('save-record-btn').textContent = "🛒 購入として保存";
         document.getElementById('save-memo-btn').textContent = "📝 メモとして保存";
         
-        window.editingRecordId = null; await loadDataFromCloud(false);
-        if (window.returnToDetailFlag) { window.showDetail(itemName); window.returnToDetailFlag = false; } else { showScreen('home-screen'); }
-      } catch (error) { showToast("保存に失敗", true); }
-      showLoading(false);
+        window.editingRecordId = null; await window.loadDataFromCloud(false);
+        if (window.returnToDetailFlag) { window.showDetail(itemName); window.returnToDetailFlag = false; } else { window.showScreen('home-screen'); }
+      } catch (error) { window.showToast("保存に失敗", true); }
+      window.showLoading(false);
     };
 
-    document.getElementById('save-record-btn').addEventListener('click', () => saveRecordData(false));
-    document.getElementById('save-memo-btn').addEventListener('click', () => saveRecordData(true));
+    document.getElementById('save-record-btn').addEventListener('click', () => window.saveRecordData(false));
+    document.getElementById('save-memo-btn').addEventListener('click', () => window.saveRecordData(true));
 
-    window.resetAndShowHome = function() { document.getElementById('home-search-input').value = ''; showScreen('home-screen'); };
+    window.resetAndShowHome = function() { document.getElementById('home-search-input').value = ''; window.showScreen('home-screen'); };
     
     window.showScreen = function(screenId) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
-      if (screenId === 'dashboard-screen') renderDashboard();
-      if (screenId === 'home-screen') renderHome();
-      if (screenId === 'settings-screen') renderTrash();
-      if (screenId === 'cart-screen') renderCart();
+      if (screenId === 'dashboard-screen') window.renderDashboard();
+      if (screenId === 'home-screen') window.renderHome();
+      if (screenId === 'settings-screen') window.renderTrash();
+      if (screenId === 'cart-screen') window.renderCart();
       window.scrollTo(0, 0);
     }
 
-    // 🌟 修正：商品一覧のパディングをインラインで明示的に指定
-    function renderHome(searchKeyword = null) {
+    window.renderHome = function(searchKeyword = null) {
       const listDiv = document.getElementById('item-list'); listDiv.innerHTML = '';
       let keyword = searchKeyword === null ? document.getElementById('home-search-input').value : searchKeyword;
       const activeRecords = records.filter(r => !r.deleted);
@@ -1551,11 +1653,11 @@
 
         const wrap = document.createElement('div'); wrap.className = 'swipe-wrap';
         wrap.innerHTML = `
-          <div class="swipe-action bg-blue" onclick="addToCart('${itemName}')">カート<br>追加</div>
-          <div class="swipe-main" onclick="showDetail('${itemName}')" style="cursor:pointer; position:relative; padding:15px;">
+          <div class="swipe-action bg-blue" onclick="window.addToCart('${itemName}')">カート<br>追加</div>
+          <div class="swipe-main" onclick="window.showDetail('${itemName}')" style="cursor:pointer; position:relative; padding:15px;">
             <div style="display:flex; align-items:flex-start; margin-bottom:5px;">
               <h3 style="flex:1; min-width:0; margin:0; font-size:18px; word-break:break-word; line-height:1.3; padding-right:10px;">${itemName}</h3>
-              <button onclick="event.stopPropagation(); openMarketWithItem('${itemName}', false)" style="flex-shrink:0; background:#fff; border:1px solid #FF9800; color:#FF9800; border-radius:4px; padding:4px 8px; font-size:12px; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.1);">📈相場</button>
+              <button onclick="event.stopPropagation(); window.openMarketWithItem('${itemName}', false)" style="flex-shrink:0; background:#fff; border:1px solid #FF9800; color:#FF9800; border-radius:4px; padding:4px 8px; font-size:12px; font-weight:bold; box-shadow:0 1px 2px rgba(0,0,0,0.1);">📈相場</button>
             </div>
             <div style="margin:0; font-size:14px; color:#555; line-height:1.4;">
               <div>📅 ${latest.date} 🛒 ${latest.superName}</div>
@@ -1565,16 +1667,16 @@
               </div>
             </div>
           </div>
-          <div class="swipe-action bg-red" onclick="logicalDeleteItem('${itemName}')" style="margin-left:2px;">削除</div>
+          <div class="swipe-action bg-red" onclick="window.logicalDeleteItem('${itemName}')" style="margin-left:2px;">削除</div>
         `;
         listDiv.appendChild(wrap);
       });
-      resetSwipePositions();
+      window.resetSwipePositions();
     }
 
-    document.getElementById('home-search-input').addEventListener('input', (e) => renderHome(e.target.value));
+    document.getElementById('home-search-input').addEventListener('input', (e) => window.renderHome(e.target.value));
 
-    function updateDataLists(activeRecords) {
+    window.updateDataLists = function(activeRecords) {
       uniqueItemNames = [...new Set([...activeRecords.map(r => r.itemName), ...cartItems.map(c => c.itemName)])];
       uniqueSuperNames = [...new Set([...activeRecords.map(r => r.superName), ...cartItems.map(c => c.superName)])];
       const counts = {}; activeRecords.forEach(r => { 
@@ -1587,7 +1689,7 @@
       window.currentDetailItemName = itemName; document.getElementById('detail-title').textContent = itemName;
       const itemRecords = records.filter(r => r.itemName === itemName && !r.deleted).sort((a,b) => new Date(a.date) - new Date(b.date));
       const historyDiv = document.getElementById('detail-history'); historyDiv.innerHTML = '';
-      if(itemRecords.length === 0) { showScreen('home-screen'); return; }
+      if(itemRecords.length === 0) { window.showScreen('home-screen'); return; }
 
       let sum = 0;
       itemRecords.forEach(r => sum += r.unitPrice);
@@ -1625,11 +1727,11 @@
                 <div style="font-size:12px; color:${dateSuperColor}; font-weight:bold; margin-bottom:5px;">📅 ${r.date} ${icon} ${r.superName}</div>
                 <div style="font-weight:bold; font-size:16px;">${r.price}円 (${r.amount}${r.unit}) <span style="color:#E91E63; margin-left:10px; font-size:14px;">単価: ${r.unitPrice.toFixed(1)}円</span></div>
               </div>
-              <button onclick="editRecord('${r.id}')" style="background:none; border:none; font-size:18px; cursor:pointer; padding:5px; color:#555; flex-shrink:0;">✏️</button>
+              <button onclick="window.editRecord('${r.id}')" style="background:none; border:none; font-size:18px; cursor:pointer; padding:5px; color:#555; flex-shrink:0;">✏️</button>
             </div>
             <div style="margin-top:8px; font-size:14px; color:#444; background:rgba(255,255,255,0.6); padding:5px; border-radius:3px;">${r.memo || '感想なし'}</div>
           </div>
-          <div class="swipe-action bg-red" onclick="logicalDeleteRecord('${r.id}')" style="margin-left:2px;">削除</div>
+          <div class="swipe-action bg-red" onclick="window.logicalDeleteRecord('${r.id}')" style="margin-left:2px;">削除</div>
         `;
         historyDiv.appendChild(wrap);
       });
@@ -1642,10 +1744,10 @@
       if (chartInstance) chartInstance.destroy();
       chartInstance = new Chart(document.getElementById('priceChart').getContext('2d'), { type: 'line', data: { labels, datasets }, options: { responsive: true, scales: { y: { beginAtZero: false, title: { display: true, text: '単価 (円)' } } } } });
       window.showScreen('detail-screen');
-      resetSwipePositions();
+      window.resetSwipePositions();
     }
 
-    function renderTrash() {
+    window.renderTrash = function() {
       const trashDiv = document.getElementById('trash-list'); trashDiv.innerHTML = '';
       const deletedRecords = records.filter(r => r.deleted).sort((a,b) => b.createdAt - a.createdAt);
       if(deletedRecords.length === 0) { trashDiv.innerHTML = '<p style="color:#777; font-size:14px;">ゴミ箱は空です。</p>'; return; }
@@ -1658,25 +1760,25 @@
             <div style="font-size:14px; font-weight:bold; color:#555; word-break:break-word; margin-bottom:5px;">${r.itemName}</div>
             <div style="font-size:12px; color:#777;">${r.date} ${icon} ${r.superName} (${r.price}円)</div>
           </div>
-          <div class="swipe-action bg-green" onclick="restoreRecord('${r.id}')">復元</div>
-          <div class="swipe-action bg-red" onclick="physicalDeleteRecord('${r.id}')" style="margin-left:2px;">完全削除</div>
+          <div class="swipe-action bg-green" onclick="window.restoreRecord('${r.id}')">復元</div>
+          <div class="swipe-action bg-red" onclick="window.physicalDeleteRecord('${r.id}')" style="margin-left:2px;">完全削除</div>
         `;
         trashDiv.appendChild(wrap);
       });
-      resetSwipePositions();
+      window.resetSwipePositions();
     }
 
-    function setupSuggest(inputId, boxId, listGetter, onSelect) {
+    window.setupSuggest = function(inputId, boxId, listGetter, onSelect) {
       const inp = document.getElementById(inputId), box = document.getElementById(boxId);
       const show = () => {
         if(inp.readOnly) return;
         const v = inp.value.trim(), h = toHiragana(v), list = listGetter();
-        if(!v && (inputId === 'super-input' || inputId === 'cart-super-input') && topSupers.length > 0) {
-          box.innerHTML = topSupers.map(m => `<div onclick="${onSelect}('${m}')"><span class="star-icon">★</span>${m}</div>`).join('');
+        if(!v && (inputId === 'super-input' || inputId === 'cart-super-input' || inputId === 'receipt-super') && topSupers.length > 0) {
+          box.innerHTML = topSupers.map(m => `<div onclick="window.${onSelect}('${m}')"><span class="star-icon">★</span>${m}</div>`).join('');
           box.style.display = 'block';
         } else if(v) {
           const match = list.filter(x => toHiragana(x).includes(h));
-          if(match.length > 0) { box.innerHTML = match.map(m => `<div onclick="${onSelect}('${m}')">${m}</div>`).join(''); box.style.display = 'block'; }
+          if(match.length > 0) { box.innerHTML = match.map(m => `<div onclick="window.${onSelect}('${m}')">${m}</div>`).join(''); box.style.display = 'block'; }
           else box.style.display = 'none';
         } else box.style.display = 'none';
       };
@@ -1688,20 +1790,340 @@
     window.selectSuper = function(n) { document.getElementById('super-input').value = n; document.getElementById('super-suggestions').style.display = 'none'; document.getElementById('item-input').focus(); };
     window.selectItem = function(n) { document.getElementById('item-input').value = n; document.getElementById('item-suggestions').style.display = 'none'; document.getElementById('price-input').focus(); };
     window.selectCartSuper = function(n) { document.getElementById('cart-super-input').value = n; document.getElementById('cart-super-suggestions').style.display = 'none'; document.getElementById('cart-add-input').focus(); };
-    window.selectCartAdd = function(n) { document.getElementById('cart-add-input').value = n; document.getElementById('cart-add-suggestions').style.display = 'none'; addCustomToCart(); };
+    window.selectCartAdd = function(n) { document.getElementById('cart-add-input').value = n; document.getElementById('cart-add-suggestions').style.display = 'none'; window.addCustomToCart(); };
+    window.selectReceiptSuper = function(n) { document.getElementById('receipt-super').value = n; document.getElementById('receipt-super-suggestions').style.display = 'none'; };
 
-    setupSuggest('super-input', 'super-suggestions', () => uniqueSuperNames, 'selectSuper');
-    setupSuggest('item-input', 'item-suggestions', () => uniqueItemNames, 'selectItem');
-    setupSuggest('cart-super-input', 'cart-super-suggestions', () => uniqueSuperNames, 'selectCartSuper');
-    setupSuggest('cart-add-input', 'cart-add-suggestions', () => uniqueItemNames, 'selectCartAdd');
-    setupSuggest('market-name-input', 'market-sugg', () => uniqueItemNames, 'selectMarket');
+    window.setupSuggest('super-input', 'super-suggestions', () => uniqueSuperNames, 'selectSuper');
+    window.setupSuggest('item-input', 'item-suggestions', () => uniqueItemNames, 'selectItem');
+    window.setupSuggest('cart-super-input', 'cart-super-suggestions', () => uniqueSuperNames, 'selectCartSuper');
+    window.setupSuggest('cart-add-input', 'cart-add-suggestions', () => uniqueItemNames, 'selectCartAdd');
+    window.setupSuggest('market-name-input', 'market-sugg', () => uniqueItemNames, 'selectMarket');
+    window.setupSuggest('receipt-super', 'receipt-super-suggestions', () => uniqueSuperNames, 'selectReceiptSuper');
+
+    window.clearReceiptPreview = function() {
+      const previewImg = document.getElementById('receipt-overlay-img');
+      if (previewImg) previewImg.src = '';
+      
+      const overlay = document.getElementById('receipt-overlay');
+      if (overlay) overlay.style.display = 'none';
+
+      const previewArea = document.getElementById('receipt-preview-area');
+      if (previewArea) previewArea.style.display = 'none';
+    };
+
+    window.toggleReceiptOverlay = function() {
+      const overlay = document.getElementById('receipt-overlay');
+      const btn = document.getElementById('receipt-toggle-btn');
+      if (overlay.style.display === 'none') {
+        const headerHeight = document.getElementById('main-header').offsetHeight;
+        overlay.style.top = headerHeight + 'px';
+        overlay.style.height = `calc(100vh - ${headerHeight}px)`;
+        overlay.style.display = 'block';
+        btn.textContent = '🖼 レシート画像を隠す';
+        btn.style.background = '#f44336';
+      } else {
+        overlay.style.display = 'none';
+        btn.textContent = '🖼 レシート画像を透かして表示';
+        btn.style.background = '#607d8b';
+      }
+    };
+
+    let currentReceiptSource = '';
+    let receiptItems = [];
+
+    window.handleReceiptSelect = async function(e, source) {
+      const file = e.target.files[0];
+      if (!file) return;
+      e.target.value = ''; 
+      
+      const apiKey = localStorage.getItem('kotomoGeminiApiKey');
+      if (!apiKey) {
+        window.showToast("設定画面からAIのAPIキーを登録してください", true);
+        return;
+      }
+
+      currentReceiptSource = source;
+      window.showLoading(true);
+
+      try {
+        let base64Data;
+        try {
+          base64Data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = error => reject(new Error('画像の読み込みに失敗しました'));
+            reader.readAsDataURL(file);
+          });
+        } catch(e) {
+          throw e;
+        }
+
+        const previewImg = document.getElementById('receipt-overlay-img');
+        const previewArea = document.getElementById('receipt-preview-area');
+        if (previewImg && previewArea) {
+          previewImg.src = `data:${file.type};base64,${base64Data}`;
+          previewArea.style.display = 'block';
+          
+          document.getElementById('receipt-overlay').style.display = 'none';
+          const toggleBtn = document.getElementById('receipt-toggle-btn');
+          if (toggleBtn) {
+            toggleBtn.textContent = '🖼 レシート画像を透かして表示';
+            toggleBtn.style.background = '#607d8b';
+          }
+        }
+
+        const prompt = `添付されたレシート画像を読み取り、以下のJSONフォーマットのみを厳密に出力してください。Markdownの装飾(\`\`\`json等)や挨拶などの余計なテキストは一切含めないでください。
+
+【抽出ルール】
+1. date: レシートの日付を "YYYY-MM-DD" 形式で抽出。不明な場合は空文字。
+2. superName: 店舗名を抽出（店番号などは不要）。
+3. items: 購入した商品の配列。各商品は itemName (品名そのまま) と price (数値・税抜または税込の記載価格) を持つこと。
+4. 合計金額、消費税、割引のみの行、お釣りなどの行は items に絶対に含めないこと。
+
+【出力フォーマット例】
+{
+  "date": "2026-03-27",
+  "superName": "店舗名",
+  "items": [
+    { "itemName": "商品名1", "price": 100 }
+  ]
+}`;
+
+        let response;
+        try {
+          response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: file.type,
+                      data: base64Data
+                    }
+                  }
+                ]
+              }]
+            })
+          });
+        } catch(e) {
+          throw new Error('ネットワーク通信エラーが発生しました');
+        }
+
+        if (!response.ok) {
+          let errorMsg = `エラー ${response.status}`;
+          try {
+            const errJson = await response.json();
+            if(errJson.error && errJson.error.message) {
+              const msg = errJson.error.message;
+              if (msg.includes("API key not valid")) errorMsg = "APIキーが無効です";
+              else if (msg.includes("API key not found")) errorMsg = "APIキーが設定されていません";
+              else if (msg.includes("Quota exceeded")) errorMsg = "APIの利用制限に達しました";
+              else errorMsg += `: ${msg.substring(0,30)}...`;
+            }
+          } catch(e){}
+          throw new Error(errorMsg);
+        }
+
+        const data = await response.json();
+        
+        if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+          throw new Error('AIから予期しないレスポンスが返されました');
+        }
+
+        let textResult = data.candidates[0].content.parts[0].text;
+        textResult = textResult.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        let parsedData;
+        try {
+          parsedData = JSON.parse(textResult);
+        } catch(e) {
+          console.error("パース失敗テキスト:", textResult);
+          throw new Error('AIの出力がJSON形式ではありませんでした');
+        }
+
+        const dateInput = document.getElementById('receipt-date');
+        if (parsedData.date && !isNaN(new Date(parsedData.date).getTime())) {
+          dateInput.value = parsedData.date;
+        } else {
+          dateInput.valueAsDate = new Date();
+        }
+
+        document.getElementById('receipt-super').value = parsedData.superName || '';
+        
+        receiptItems = (parsedData.items || []).map((item, index) => ({
+          id: Date.now() + index,
+          itemName: item.itemName || '',
+          price: item.price || '',
+          amount: 1, 
+          unit: '個' 
+        }));
+
+        window.renderReceiptItems();
+
+        const actionRecord = document.getElementById('receipt-action-record');
+        if (actionRecord) actionRecord.style.display = 'flex';
+
+        window.showScreen('receipt-screen');
+
+      } catch (error) {
+        console.error("レシート読み取りエラー詳細:", error);
+        const msg = error.message ? error.message : "未知のエラー";
+        window.showToast(`読込失敗: ${msg}`, true);
+      }
+
+      window.showLoading(false);
+    };
+
+    window.renderReceiptItems = function() {
+      const container = document.getElementById('receipt-items-container');
+      container.innerHTML = '';
+      receiptItems.forEach((item) => {
+        const div = document.createElement('div');
+        div.style.background = '#fff';
+        div.style.padding = '10px';
+        div.style.borderRadius = '8px';
+        div.style.marginBottom = '10px';
+        div.style.border = '1px solid #ddd';
+        div.style.position = 'relative';
+
+        div.innerHTML = `
+          <div style="position:absolute; top:5px; right:5px; cursor:pointer; color:#f44336; font-size:16px; padding:5px;" onclick="window.removeReceiptItem(${item.id})">✖</div>
+          <input type="text" value="${item.itemName}" onchange="window.updateReceiptItem(${item.id}, 'itemName', this.value)" placeholder="品名" style="width:calc(100% - 30px); margin-bottom:8px; padding:6px; font-size:14px; border:1px solid #ccc; border-radius:4px;">
+          <div style="display:flex; gap:8px;">
+            <input type="number" inputmode="numeric" value="${item.price}" onchange="window.updateReceiptItem(${item.id}, 'price', this.value)" placeholder="価格" style="flex:1.5; margin:0; padding:6px; font-size:14px;">
+            <input type="number" inputmode="numeric" value="${item.amount}" onchange="window.updateReceiptItem(${item.id}, 'amount', this.value)" placeholder="量" style="flex:1; margin:0; padding:6px; font-size:14px;">
+            <select onchange="window.updateReceiptItem(${item.id}, 'unit', this.value)" style="flex:1; margin:0; padding:6px; font-size:14px;">
+              <option value="個" ${item.unit === '個' ? 'selected' : ''}>個</option>
+              <option value="g" ${item.unit === 'g' ? 'selected' : ''}>g</option>
+            </select>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    };
+
+    window.addReceiptItemRow = function() {
+      receiptItems.push({ id: Date.now(), itemName: '', price: '', amount: 1, unit: '個' });
+      window.renderReceiptItems();
+    };
+
+    window.removeReceiptItem = function(id) {
+      receiptItems = receiptItems.filter(item => item.id !== id);
+      window.renderReceiptItems();
+    };
+
+    window.updateReceiptItem = function(id, field, value) {
+      const item = receiptItems.find(i => i.id === id);
+      if(item) {
+        if (field === 'price' || field === 'amount') {
+          item[field] = value ? parseFloat(value) : '';
+        } else {
+          item[field] = value;
+        }
+      }
+    };
+
+    window.cancelReceipt = function() {
+      receiptItems = [];
+      window.clearReceiptPreview();
+      if (currentReceiptSource === 'record') {
+        window.showScreen('record-screen');
+      } else {
+        window.showScreen('cart-screen');
+      }
+    };
+
+    window.saveReceiptAs = async function(action) {
+      const date = document.getElementById('receipt-date').value;
+      let superName = document.getElementById('receipt-super').value.trim();
+
+      if (!date || !superName) {
+        window.showToast("購入日とスーパー名を入力してください", true);
+        return;
+      }
+
+      const validItems = [];
+      for (let i=0; i<receiptItems.length; i++) {
+        const item = receiptItems[i];
+        if (!item.itemName) continue; 
+        let p = parseFloat(item.price);
+        let a = parseFloat(item.amount);
+        if (isNaN(p) || isNaN(a) || a === 0) {
+          window.showToast("価格と内容量を正しく入力してください", true);
+          return;
+        }
+        
+        const hiraName = toHiragana(item.itemName);
+        const existingMatch = uniqueItemNames.find(e => toHiragana(e) === hiraName);
+        const finalItemName = existingMatch ? existingMatch : item.itemName;
+        
+        validItems.push({
+          itemName: finalItemName,
+          price: p,
+          amount: a,
+          unit: item.unit
+        });
+      }
+
+      if (validItems.length === 0) {
+        window.showToast("登録する商品がありません", true);
+        return;
+      }
+
+      const existingSuperMatch = uniqueSuperNames.find(e => toHiragana(e) === toHiragana(superName)); 
+      if (existingSuperMatch) superName = existingSuperMatch;
+
+      window.showLoading(true);
+      try {
+        if (action === 'cart') {
+          for (const item of validItems) {
+            const newItem = {
+              userId: currentUserId, itemName: item.itemName, status: 'incart', checked: false,
+              price: item.price, amount: item.amount, unit: item.unit, memo: '',
+              superName: superName, date: date, createdAt: Date.now()
+            };
+            const docRef = await addDoc(collection(db, "cart"), newItem);
+            cartItems.push({ id: docRef.id, ...newItem });
+          }
+          window.showToast(`🛒 ${validItems.length}件をカートに追加しました`);
+        } else {
+          const isMemo = (action === 'memo');
+          for (const item of validItems) {
+            const unitPrice = item.unit === '個' ? (item.price / item.amount) : ((item.price / item.amount) * 100);
+            const newRecord = { 
+              userId: currentUserId, date: date, superName: superName, itemName: item.itemName, 
+              price: item.price, amount: item.amount, unit: item.unit, unitPrice: unitPrice, 
+              memo: '', deleted: false, createdAt: Date.now(), isMemo: isMemo 
+            };
+            await addDoc(collection(db, "records"), newRecord);
+          }
+          window.showToast(`${isMemo ? '📝' : '🛒'} ${validItems.length}件を記録しました`);
+        }
+        
+        window.updateDataLists(records.filter(r => !r.deleted));
+        await window.loadDataFromCloud(false);
+        
+        window.clearReceiptPreview();
+
+        if (action === 'cart') {
+          window.showScreen('cart-screen');
+        } else {
+          window.showScreen('dashboard-screen');
+        }
+      } catch (e) {
+        window.showToast("保存に失敗しました", true);
+      }
+      window.showLoading(false);
+    };
 
     window.calcInput = function(v) { document.getElementById('calc-display').value += v; }
     window.calcClear = function() { document.getElementById('calc-display').value = ""; }
     window.calcEval = function() { try { document.getElementById('calc-display').value = eval(document.getElementById('calc-display').value); } catch(e) {} }
-    function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
 
-    if (currentUserId) loadDataFromCloud(true);
+    if (currentUserId) window.loadDataFromCloud(true);
   </script>
 </body>
 </html>
